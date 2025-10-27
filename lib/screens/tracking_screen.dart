@@ -14,6 +14,7 @@ class _TrackingScreenState extends State<TrackingScreen> {
   final Completer<GoogleMapController> _controller = Completer();
   final LatLng initial = LatLng(6.9271,79.8612);
   Marker? techMarker;
+  bool _mapError = false;
 
   @override
   void initState(){
@@ -35,13 +36,55 @@ class _TrackingScreenState extends State<TrackingScreen> {
   @override Widget build(BuildContext ctx) {
     return Scaffold(
       appBar: AppBar(title: Text('Tracking')),
-      body: GoogleMap(
-        initialCameraPosition: CameraPosition(target: initial, zoom: 14),
-        onMapCreated: (GoogleMapController controller) {
-          _controller.complete(controller);
+      body: _mapError
+          ? _buildMapErrorWidget()
+          : GoogleMap(
+              initialCameraPosition: CameraPosition(target: initial, zoom: 14),
+              onMapCreated: (GoogleMapController controller) {
+                _controller.complete(controller);
+              },
+              markers: techMarker != null ? {techMarker!} : {},
+            ),
+      // Fallback UI in case Google Maps fails to load
+      floatingActionButton: FloatingActionButton(
+        onPressed: () {
+          ScaffoldMessenger.of(ctx).showSnackBar(
+            SnackBar(content: Text('Map tracking feature - Technician location: ${techMarker?.position ?? 'Unknown'}'))
+          );
         },
-        markers: techMarker != null ? {techMarker!} : {},
-      )
+        child: Icon(Icons.location_on),
+      ),
+    );
+  }
+
+  Widget _buildMapErrorWidget() {
+    return Container(
+      color: Colors.grey[100],
+      child: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.map, size: 64, color: Colors.grey),
+            SizedBox(height: 16),
+            Text(
+              'Map unavailable',
+              style: TextStyle(fontSize: 18, color: Colors.grey[600]),
+            ),
+            SizedBox(height: 8),
+            Text(
+              'Unable to load Google Maps',
+              style: TextStyle(fontSize: 14, color: Colors.grey[500]),
+            ),
+            SizedBox(height: 16),
+            ElevatedButton(
+              onPressed: () {
+                setState(() => _mapError = false);
+              },
+              child: Text('Retry'),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

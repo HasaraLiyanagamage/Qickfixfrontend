@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "952324404929",
+    "project_id": "quickfixapp-3074a",
+    "storage_bucket": "quickfixapp-3074a.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:952324404929:android:22b84aa47cc4c6f0140640",
+        "android_client_info": {
+          "package_name": "com.example.quickfix"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyASXpbLwjfrt0Hu0nveTrCTbFhSV502m30"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
