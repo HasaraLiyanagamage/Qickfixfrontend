@@ -23,7 +23,7 @@ class _TechJobsScreenState extends State<TechJobsScreen> {
   Future<void> _loadJobs() async {
     setState(() => _isLoading = true);
     try {
-      final jobsData = await Api.getUserBookings(); // This would need a technician-specific endpoint
+      final jobsData = await Api.getTechnicianJobs();
       if (mounted) {
         setState(() {
           _allJobs = jobsData?.map((b) => Booking.fromJson(b)).toList();

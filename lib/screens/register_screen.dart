@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:geocoding/geocoding.dart';
 import '../services/api.dart';
 import 'login_screen.dart';
 
@@ -14,30 +16,75 @@ class _RegisterScreenState extends State<RegisterScreen> {
 final TextEditingController nameController = TextEditingController();
 final TextEditingController emailController = TextEditingController();
 final TextEditingController passwordController = TextEditingController();
+final TextEditingController phoneController = TextEditingController();
+final TextEditingController addressController = TextEditingController();
 final TextEditingController skillsController = TextEditingController();
 
 bool _isLoading = false;
 String _selectedRole = 'user';
+double? _lat;
+double? _lng;
 
 // --- Backend Email Registration ---
 Future<void> _register() async {
 final name = nameController.text.trim();
 final email = emailController.text.trim();
 final password = passwordController.text.trim();
+final phone = phoneController.text.trim();
+final address = addressController.text.trim();
 
 if (name.isEmpty || email.isEmpty || password.isEmpty) {
   _showSnackBar("Please fill in all fields");
   return;
 }
 
+if (address.isEmpty) {
+  _showSnackBar("Please enter your address");
+  return;
+}
+
 setState(() => _isLoading = true);
+
+// Try to geocode address to get coordinates (optional)
+if (_lat == null || _lng == null) {
+  try {
+    // Try geocoding with the original address
+    List<Location> locations = [];
+    try {
+      locations = await locationFromAddress(address);
+    } catch (e) {
+      // If original address fails, try with "Sri Lanka" appended
+      if (!address.toLowerCase().contains('sri lanka')) {
+        locations = await locationFromAddress('$address, Sri Lanka');
+      }
+    }
+    
+    if (locations.isNotEmpty) {
+      _lat = locations.first.latitude;
+      _lng = locations.first.longitude;
+    } else {
+      // If geocoding returns empty, use Sri Lanka center coordinates
+      // User can update location later or use manual entry during booking
+      _lat = 7.8731;  // Sri Lanka center latitude
+      _lng = 80.7718; // Sri Lanka center longitude
+    }
+  } catch (e) {
+    // If geocoding fails completely, use Sri Lanka center coordinates
+    // This allows registration to continue even if geocoding service is unavailable
+    _lat = 7.8731;  // Sri Lanka center latitude
+    _lng = 80.7718; // Sri Lanka center longitude
+  }
+}
 
 final result = _selectedRole == 'technician'
   ? await Api.registerTechnician(
       name: name,
       email: email,
       password: password,
-      phone: '', // Could add phone field if needed
+      phone: phone,
+      address: address,
+      lat: _lat,
+      lng: _lng,
       skills: skillsController.text.trim().isNotEmpty
           ? skillsController.text.split(',').map((s) => s.trim()).toList()
           : [],
@@ -47,6 +94,10 @@ final result = _selectedRole == 'technician'
   email: email,
   password: password,
   role: _selectedRole,
+  phone: phone,
+  address: address,
+  lat: _lat,
+  lng: _lng,
 );
 
 setState(() => _isLoading = false);
@@ -67,91 +118,99 @@ if (result != null && result['token'] != null) {
 
 // --- Google Sign-Up ---
 Future<void> _registerWithGoogle() async {
-try {
-GoogleAuthProvider googleProvider = GoogleAuthProvider();
-googleProvider.addScope('email');
-googleProvider.addScope('profile');
+  try {
+    GoogleAuthProvider googleProvider = GoogleAuthProvider();
+    googleProvider.addScope('email');
+    googleProvider.addScope('profile');
 
-  UserCredential cred =
-      await FirebaseAuth.instance.signInWithProvider(googleProvider);
-  User? user = cred.user;
-
-  if (user != null) {
-    await Api.register(
-      name: user.displayName ?? "Google User",
-      email: user.email ?? "",
-      password: "firebase_${user.uid}", // dummy password for backend
-      role: 'user',
-    );
-    _showSnackBar("Google registration successful! Please log in.");
-    if (mounted) {
-      Navigator.pushReplacement(
-          context, MaterialPageRoute(builder: (_) => const LoginScreen()));
+    UserCredential cred;
+    if (kIsWeb) {
+      cred = await FirebaseAuth.instance.signInWithPopup(googleProvider);
+    } else {
+      cred = await FirebaseAuth.instance.signInWithProvider(googleProvider);
     }
+    User? user = cred.user;
+
+    if (user != null) {
+      await Api.register(
+        name: user.displayName ?? "Google User",
+        email: user.email ?? "",
+        password: "firebase_${user.uid}", // dummy password for backend
+        role: 'user',
+      );
+      _showSnackBar("Google registration successful! Please log in.");
+      if (mounted) {
+        Navigator.pushReplacement(
+            context, MaterialPageRoute(builder: (_) => const LoginScreen()));
+      }
+    }
+  } catch (e) {
+    _showSnackBar("Google sign-up failed: $e");
   }
-} catch (e) {
-  _showSnackBar("Google sign-up failed: $e");
-}
-
-
 }
 
 // --- Facebook Sign-Up ---
 Future<void> _registerWithFacebook() async {
-try {
-FacebookAuthProvider facebookProvider = FacebookAuthProvider();
-facebookProvider.addScope('email');
-facebookProvider.addScope('public_profile');
+  try {
+    FacebookAuthProvider facebookProvider = FacebookAuthProvider();
+    facebookProvider.addScope('email');
+    facebookProvider.addScope('public_profile');
 
-  UserCredential cred =
-      await FirebaseAuth.instance.signInWithProvider(facebookProvider);
-  User? user = cred.user;
-
-  if (user != null) {
-    await Api.register(
-      name: user.displayName ?? "Facebook User",
-      email: user.email ?? "",
-      password: "firebase_${user.uid}",
-      role: 'user',
-    );
-    _showSnackBar("Facebook registration successful! Please log in.");
-    if (mounted) {
-      Navigator.pushReplacement(
-          context, MaterialPageRoute(builder: (_) => const LoginScreen()));
+    UserCredential cred;
+    if (kIsWeb) {
+      cred = await FirebaseAuth.instance.signInWithPopup(facebookProvider);
+    } else {
+      cred = await FirebaseAuth.instance.signInWithProvider(facebookProvider);
     }
+    User? user = cred.user;
+
+    if (user != null) {
+      await Api.register(
+        name: user.displayName ?? "Facebook User",
+        email: user.email ?? "",
+        password: "firebase_${user.uid}",
+        role: 'user',
+      );
+      _showSnackBar("Facebook registration successful! Please log in.");
+      if (mounted) {
+        Navigator.pushReplacement(
+            context, MaterialPageRoute(builder: (_) => const LoginScreen()));
+      }
+    }
+  } catch (e) {
+    _showSnackBar("Facebook sign-up failed: $e");
   }
-} catch (e) {
-  _showSnackBar("Facebook sign-up failed: $e");
-}
-
-
 }
 
 // --- Apple Sign-Up ---
 Future<void> _registerWithApple() async {
-try {
-OAuthProvider appleProvider = OAuthProvider('apple.com');
-appleProvider.addScope('email');
-appleProvider.addScope('name');
+  try {
+    OAuthProvider appleProvider = OAuthProvider('apple.com');
+    appleProvider.addScope('email');
+    appleProvider.addScope('name');
 
-  UserCredential cred =
-      await FirebaseAuth.instance.signInWithProvider(appleProvider);
-  User? user = cred.user;
-
-  if (user != null) {
-    await Api.register(
-      name: user.displayName ?? "Apple User",
-      email: user.email ?? "",
-      password: "firebase_${user.uid}",
-      role: 'user',
-    );
-    _showSnackBar("Apple registration successful! Please log in.");
-    if (mounted) {
-      Navigator.pushReplacement(
-          context, MaterialPageRoute(builder: (_) => const LoginScreen()));
+    UserCredential cred;
+    if (kIsWeb) {
+      cred = await FirebaseAuth.instance.signInWithPopup(appleProvider);
+    } else {
+      cred = await FirebaseAuth.instance.signInWithProvider(appleProvider);
     }
-  }
-} catch (e) {
+    User? user = cred.user;
+
+    if (user != null) {
+      await Api.register(
+        name: user.displayName ?? "Apple User",
+        email: user.email ?? "",
+        password: "firebase_${user.uid}",
+        role: 'user',
+      );
+      _showSnackBar("Apple registration successful! Please log in.");
+      if (mounted) {
+        Navigator.pushReplacement(
+            context, MaterialPageRoute(builder: (_) => const LoginScreen()));
+      }
+    }
+  } catch (e) {
   _showSnackBar("Apple sign-up failed: $e");
 }
 
@@ -211,6 +270,32 @@ const SizedBox(height: 30),
             decoration: const InputDecoration(
               labelText: "Password",
               border: OutlineInputBorder(),
+            ),
+          ),
+          const SizedBox(height: 15),
+
+          // Phone
+          TextField(
+            controller: phoneController,
+            keyboardType: TextInputType.phone,
+            decoration: const InputDecoration(
+              labelText: "Phone Number (Optional)",
+              border: OutlineInputBorder(),
+              prefixIcon: Icon(Icons.phone),
+            ),
+          ),
+          const SizedBox(height: 15),
+
+          // Address
+          TextField(
+            controller: addressController,
+            maxLines: 2,
+            decoration: const InputDecoration(
+              labelText: "Address *",
+              hintText: "e.g., 23 Siyane St, Gampaha, Sri Lanka",
+              helperText: "Enter street, city, and district",
+              border: OutlineInputBorder(),
+              prefixIcon: Icon(Icons.location_on),
             ),
           ),
           const SizedBox(height: 20),

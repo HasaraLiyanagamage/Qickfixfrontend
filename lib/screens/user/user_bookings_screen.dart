@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../models/app_models.dart';
 import '../../services/api.dart';
+import '../tracking_screen.dart';
 
 class UserBookingsScreen extends StatefulWidget {
   const UserBookingsScreen({super.key});
@@ -293,9 +294,9 @@ class _UserBookingsScreenState extends State<UserBookingsScreen> {
                       foregroundColor: Colors.blueAccent,
                     ),
                   ),
-                ] else if (booking.status == 'accepted') ...[
+                ] else if (booking.status == 'accepted' || booking.status == 'matched') ...[
                   ElevatedButton.icon(
-                    onPressed: () {},
+                    onPressed: () => _openTracking(booking),
                     icon: const Icon(Icons.navigation, size: 16),
                     label: const Text('Track'),
                     style: ElevatedButton.styleFrom(
@@ -315,6 +316,29 @@ class _UserBookingsScreenState extends State<UserBookingsScreen> {
               ],
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  void _openTracking(Booking booking) {
+    if (booking.technician == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No technician assigned yet')),
+      );
+      return;
+    }
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => BookingTrackingScreen(
+          bookingId: booking.id,
+          technicianName: booking.technician!.user!.name,
+          serviceType: booking.serviceType,
+          userLat: booking.location['coordinates'][1].toDouble(),
+          userLng: booking.location['coordinates'][0].toDouble(),
+          userAddress: booking.location['address'] ?? 'Your location',
         ),
       ),
     );

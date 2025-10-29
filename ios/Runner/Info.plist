@@ -47,6 +47,10 @@
 	<true/>
 	<key>FirebaseAppDelegateProxyEnabled</key>
 <true/>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>QuickFix needs your location to find nearby technicians and provide accurate service.</string>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>QuickFix needs your location to find nearby technicians and provide accurate service.</string>
 
 </dict>
 </plist>

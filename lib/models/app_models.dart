@@ -6,6 +6,9 @@ class User {
   final String email;
   final String? phone;
   final String role;
+  final String? address;
+  final double? lat;
+  final double? lng;
   final DateTime createdAt;
 
   User({
@@ -14,6 +17,9 @@ class User {
     required this.email,
     this.phone,
     required this.role,
+    this.address,
+    this.lat,
+    this.lng,
     required this.createdAt,
   });
 
@@ -24,6 +30,9 @@ class User {
       email: json['email'] ?? '',
       phone: json['phone'],
       role: json['role'] ?? 'user',
+      address: json['address'],
+      lat: json['lat']?.toDouble(),
+      lng: json['lng']?.toDouble(),
       createdAt: json['createdAt'] != null ? DateTime.parse(json['createdAt']) : DateTime.now(),
     );
   }
@@ -35,6 +44,9 @@ class User {
       'email': email,
       'phone': phone,
       'role': role,
+      'address': address,
+      'lat': lat,
+      'lng': lng,
       'createdAt': createdAt.toIso8601String(),
     };
   }
@@ -43,6 +55,9 @@ class User {
     String? name,
     String? phone,
     String? role,
+    String? address,
+    double? lat,
+    double? lng,
   }) {
     return User(
       id: id,
@@ -50,6 +65,9 @@ class User {
       email: email,
       phone: phone ?? this.phone,
       role: role ?? this.role,
+      address: address ?? this.address,
+      lat: lat ?? this.lat,
+      lng: lng ?? this.lng,
       createdAt: createdAt,
     );
   }

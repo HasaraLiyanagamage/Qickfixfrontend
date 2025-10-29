@@ -15,6 +15,18 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
   final List<Map<String, dynamic>> _messages = [];
   bool _isTyping = false;
 
+  @override
+  void initState() {
+    super.initState();
+    // Add welcome message
+    _messages.add({
+      'sender': 'bot',
+      'text': 'Hello! I\'m QuickFix Assistant 🤖. I can help you book emergency home repairs, track technicians, or answer questions about our services. What do you need help with?',
+      'time': DateTime.now(),
+      'context': 'greeting',
+    });
+  }
+
   // Send message to chatbot
   Future<void> _sendMessage() async {
     final text = _controller.text.trim();
@@ -32,13 +44,14 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
 
     _scrollToBottom();
 
-    final reply = await ChatbotApi.sendMessage(text);
+    final response = await ChatbotApi.sendMessageWithContext(text);
 
     setState(() {
       _messages.add({
         'sender': 'bot',
-        'text': reply,
+        'text': response['reply'],
         'time': DateTime.now(),
+        'context': response['context'],
       });
       _isTyping = false;
     });

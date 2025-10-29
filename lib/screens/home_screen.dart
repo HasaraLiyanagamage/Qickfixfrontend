@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'request_service_screen.dart';
-import 'tracking_screen.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
@@ -12,10 +11,10 @@ class HomeScreen extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           ElevatedButton(onPressed: () => Navigator.push(ctx, MaterialPageRoute(builder: (_) => RequestServiceScreen())), child: Text('Request Service')),
-          SizedBox(height: 12),
-          ElevatedButton(onPressed: () => Navigator.push(ctx, MaterialPageRoute(builder: (_) => TrackingScreen())), child: Text('Open Tracking (demo)')),
         ],
       )),
     );
   }
 }
+
+

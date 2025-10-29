@@ -2,26 +2,24 @@ import 'package:flutter/material.dart';
 import '../../services/api.dart';
 import '../../models/app_models.dart';
 
-class TechProfileScreen extends StatefulWidget {
-  const TechProfileScreen({super.key});
+class UserProfileScreen extends StatefulWidget {
+  const UserProfileScreen({super.key});
 
   @override
-  State<TechProfileScreen> createState() => _TechProfileScreenState();
+  State<UserProfileScreen> createState() => _UserProfileScreenState();
 }
 
-class _TechProfileScreenState extends State<TechProfileScreen> {
+class _UserProfileScreenState extends State<UserProfileScreen> {
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
   final _emailController = TextEditingController();
   final _phoneController = TextEditingController();
-  final _skillsController = TextEditingController();
+  final _addressController = TextEditingController();
 
   bool _isLoading = true;
   bool _isEditing = false;
   bool _isSaving = false;
-  Map<String, dynamic>? _profile;
   User? _user;
-  bool _isAvailable = true;
 
   @override
   void initState() {
@@ -34,24 +32,21 @@ class _TechProfileScreenState extends State<TechProfileScreen> {
     _nameController.dispose();
     _emailController.dispose();
     _phoneController.dispose();
-    _skillsController.dispose();
+    _addressController.dispose();
     super.dispose();
   }
 
   Future<void> _loadProfile() async {
     setState(() => _isLoading = true);
     try {
-      final profileData = await Api.getTechnicianProfile();
+      final profileData = await Api.getUserProfile();
       if (mounted && profileData != null) {
-        final userData = profileData['user'];
         setState(() {
-          _profile = Map<String, dynamic>.from(profileData);
-          _user = userData != null ? User.fromJson(userData) : null;
-          _nameController.text = _user?.name ?? '';
-          _emailController.text = _user?.email ?? '';
-          _phoneController.text = _user?.phone ?? '';
-          _skillsController.text = (profileData['skills'] as List?)?.join(', ') ?? '';
-          _isAvailable = profileData['isAvailable'] ?? true;
+          _user = User.fromJson(Map<String, dynamic>.from(profileData));
+          _nameController.text = _user!.name;
+          _emailController.text = _user!.email;
+          _phoneController.text = _user!.phone ?? '';
+          _addressController.text = profileData['address'] ?? '';
           _isLoading = false;
         });
       }
@@ -70,10 +65,10 @@ class _TechProfileScreenState extends State<TechProfileScreen> {
 
     setState(() => _isSaving = true);
     try {
-      final result = await Api.updateTechnicianProfile(
+      final result = await Api.updateUserProfile(
         name: _nameController.text.trim(),
         phone: _phoneController.text.trim().isEmpty ? null : _phoneController.text.trim(),
-        skills: _skillsController.text.trim().isEmpty ? null : _skillsController.text.trim(),
+        address: _addressController.text.trim().isEmpty ? null : _addressController.text.trim(),
       );
 
       if (mounted) {
@@ -103,37 +98,12 @@ class _TechProfileScreenState extends State<TechProfileScreen> {
     }
   }
 
-  Future<void> _toggleAvailability() async {
-    final newStatus = !_isAvailable;
-    setState(() => _isAvailable = newStatus);
-    
-    try {
-      await Api.updateTechnicianProfile(isAvailable: newStatus);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(newStatus ? 'You are now available for jobs' : 'You are now offline'),
-            backgroundColor: newStatus ? Colors.green : Colors.orange,
-          ),
-        );
-      }
-    } catch (e) {
-      setState(() => _isAvailable = !newStatus);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error updating availability: $e')),
-        );
-      }
-    }
-  }
-
   void _toggleEdit() {
     setState(() {
       if (_isEditing) {
         // Cancel editing - restore original values
-        _nameController.text = _user?.name ?? '';
-        _phoneController.text = _user?.phone ?? '';
-        _skillsController.text = (_profile?['skills'] as List?)?.join(', ') ?? '';
+        _nameController.text = _user!.name;
+        _phoneController.text = _user!.phone ?? '';
       }
       _isEditing = !_isEditing;
     });
@@ -185,10 +155,6 @@ class _TechProfileScreenState extends State<TechProfileScreen> {
                     children: [
                       _buildProfileHeader(),
                       const SizedBox(height: 24),
-                      _buildAvailabilityCard(),
-                      const SizedBox(height: 24),
-                      _buildStatsCards(),
-                      const SizedBox(height: 24),
                       _buildProfileForm(),
                       const SizedBox(height: 24),
                     ],
@@ -211,7 +177,7 @@ class _TechProfileScreenState extends State<TechProfileScreen> {
                 child: ElevatedButton(
                   onPressed: _isSaving ? null : _saveProfile,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.orangeAccent,
+                    backgroundColor: Colors.blueAccent,
                     foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(vertical: 16),
                     shape: RoundedRectangleBorder(
@@ -244,7 +210,7 @@ class _TechProfileScreenState extends State<TechProfileScreen> {
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [Colors.orangeAccent, Colors.orange.shade700],
+          colors: [Colors.blueAccent, Colors.blue.shade700],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
@@ -255,11 +221,11 @@ class _TechProfileScreenState extends State<TechProfileScreen> {
             radius: 50,
             backgroundColor: Colors.white,
             child: Text(
-              _user!.name.isNotEmpty ? _user!.name[0].toUpperCase() : 'T',
+              _user!.name.isNotEmpty ? _user!.name[0].toUpperCase() : 'U',
               style: const TextStyle(
                 fontSize: 40,
                 fontWeight: FontWeight.bold,
-                color: Colors.orangeAccent,
+                color: Colors.blueAccent,
               ),
             ),
           ),
@@ -288,151 +254,12 @@ class _TechProfileScreenState extends State<TechProfileScreen> {
               borderRadius: BorderRadius.circular(20),
             ),
             child: const Text(
-              'Technician',
+              'User',
               style: TextStyle(
                 color: Colors.white,
                 fontSize: 12,
                 fontWeight: FontWeight.w500,
               ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildAvailabilityCard() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: Container(
-        padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Colors.grey[200]!),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.05),
-              blurRadius: 4,
-              offset: const Offset(0, 2),
-            ),
-          ],
-        ),
-        child: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: (_isAvailable ? Colors.green : Colors.orange).withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Icon(
-                _isAvailable ? Icons.check_circle : Icons.cancel,
-                color: _isAvailable ? Colors.green : Colors.orange,
-                size: 28,
-              ),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'Availability Status',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Colors.grey,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    _isAvailable ? 'Available' : 'Offline',
-                    style: const TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            Switch(
-              value: _isAvailable,
-              onChanged: (_) => _toggleAvailability(),
-              activeThumbColor: Colors.green,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildStatsCards() {
-    final totalJobs = _profile?['totalJobs'] ?? 0;
-    final rating = _profile?['rating'] ?? 0;
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: Row(
-        children: [
-          Expanded(
-            child: _buildStatCard(
-              icon: Icons.work_outline,
-              label: 'Total Jobs',
-              value: totalJobs.toString(),
-              color: Colors.blue,
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: _buildStatCard(
-              icon: Icons.star,
-              label: 'Rating',
-              value: rating > 0 ? rating.toString() : 'N/A',
-              color: Colors.amber,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildStatCard({
-    required IconData icon,
-    required String label,
-    required String value,
-    required Color color,
-  }) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey[200]!),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 4,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        children: [
-          Icon(icon, color: color, size: 28),
-          const SizedBox(height: 8),
-          Text(
-            value,
-            style: const TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 12,
-              color: Colors.grey[600],
             ),
           ),
         ],
@@ -486,12 +313,11 @@ class _TechProfileScreenState extends State<TechProfileScreen> {
             ),
             const SizedBox(height: 16),
             _buildTextField(
-              controller: _skillsController,
-              label: 'Skills',
-              icon: Icons.build,
+              controller: _addressController,
+              label: 'Address',
+              icon: Icons.location_on,
               enabled: _isEditing,
-              helperText: 'Separate skills with commas (e.g., Plumbing, Electrical)',
-              maxLines: 2,
+              maxLines: 3,
             ),
           ],
         ),
@@ -526,7 +352,7 @@ class _TechProfileScreenState extends State<TechProfileScreen> {
         decoration: InputDecoration(
           labelText: label,
           helperText: helperText,
-          prefixIcon: Icon(icon, color: enabled ? Colors.orangeAccent : Colors.grey),
+          prefixIcon: Icon(icon, color: enabled ? Colors.blueAccent : Colors.grey),
           border: InputBorder.none,
           contentPadding: const EdgeInsets.all(16),
           labelStyle: TextStyle(
