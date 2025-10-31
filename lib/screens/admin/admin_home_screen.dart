@@ -6,6 +6,7 @@ import 'admin_chatbot_screen.dart';
 import 'admin_users_screen.dart';
 import 'admin_bookings_screen.dart';
 import 'admin_profile_screen.dart';
+import 'admin_settings_screen.dart';
 
 class AdminHomeScreen extends StatefulWidget {
   const AdminHomeScreen({super.key});
@@ -17,6 +18,7 @@ class AdminHomeScreen extends StatefulWidget {
 class _AdminHomeScreenState extends State<AdminHomeScreen> {
   SystemStats? _stats;
   bool _isLoading = true;
+  int _selectedIndex = 0;
 
   @override
   void initState() {
@@ -69,6 +71,34 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
       context,
       MaterialPageRoute(builder: (_) => const AdminBookingsScreen()),
     );
+  }
+
+  void _onNavItemTapped(int index) {
+    setState(() => _selectedIndex = index);
+    
+    switch (index) {
+      case 0:
+        // Already on home
+        break;
+      case 1:
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const AdminUsersScreen()),
+        );
+        break;
+      case 2:
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const AdminBookingsScreen()),
+        );
+        break;
+      case 3:
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const AdminSettingsScreen()),
+        );
+        break;
+    }
   }
 
   @override
@@ -131,6 +161,31 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
           'AI Assistant',
           style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
         ),
+      ),
+      bottomNavigationBar: BottomNavigationBar(
+        currentIndex: _selectedIndex,
+        onTap: _onNavItemTapped,
+        type: BottomNavigationBarType.fixed,
+        selectedItemColor: Colors.deepPurple,
+        unselectedItemColor: Colors.grey,
+        items: const [
+          BottomNavigationBarItem(
+            icon: Icon(Icons.dashboard),
+            label: 'Dashboard',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.people),
+            label: 'Users',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.work),
+            label: 'Bookings',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.settings),
+            label: 'Settings',
+          ),
+        ],
       ),
     );
   }

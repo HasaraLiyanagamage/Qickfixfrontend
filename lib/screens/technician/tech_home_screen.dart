@@ -5,6 +5,7 @@ import '../login_screen.dart';
 import 'tech_chatbot_screen.dart';
 import 'tech_jobs_screen.dart';
 import 'tech_profile_screen.dart';
+import 'technician_settings_screen.dart';
 
 class TechnicianHomeScreen extends StatefulWidget {
   const TechnicianHomeScreen({super.key});
@@ -18,6 +19,7 @@ class _TechnicianHomeScreenState extends State<TechnicianHomeScreen> {
   bool _isLoading = true;
   bool _isAvailable = true;
   Map<String, dynamic>? _profile;
+  int _selectedIndex = 0;
 
   @override
   void initState() {
@@ -103,6 +105,34 @@ class _TechnicianHomeScreenState extends State<TechnicianHomeScreen> {
     );
   }
 
+  void _onNavItemTapped(int index) {
+    setState(() => _selectedIndex = index);
+    
+    switch (index) {
+      case 0:
+        // Already on home
+        break;
+      case 1:
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const TechJobsScreen()),
+        );
+        break;
+      case 2:
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const TechChatbotScreen()),
+        );
+        break;
+      case 3:
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const TechnicianSettingsScreen()),
+        );
+        break;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -153,6 +183,31 @@ class _TechnicianHomeScreenState extends State<TechnicianHomeScreen> {
           'View Jobs',
           style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
         ),
+      ),
+      bottomNavigationBar: BottomNavigationBar(
+        currentIndex: _selectedIndex,
+        onTap: _onNavItemTapped,
+        type: BottomNavigationBarType.fixed,
+        selectedItemColor: Colors.orangeAccent,
+        unselectedItemColor: Colors.grey,
+        items: const [
+          BottomNavigationBarItem(
+            icon: Icon(Icons.home),
+            label: 'Home',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.work),
+            label: 'Jobs',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.chat_bubble_outline),
+            label: 'Chat',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.settings),
+            label: 'Settings',
+          ),
+        ],
       ),
     );
   }

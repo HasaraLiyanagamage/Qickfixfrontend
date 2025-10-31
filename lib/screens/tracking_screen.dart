@@ -33,8 +33,8 @@ class _BookingTrackingScreenState extends State<BookingTrackingScreen> {
   LatLng? _technicianLocation;
   late LatLng _userLocation;
   
-  Set<Marker> _markers = {};
-  Set<Polyline> _polylines = {};
+  final Set<Marker> _markers = {};
+  final Set<Polyline> _polylines = {};
   
   double? _distanceInKm;
   int? _etaInMinutes;
