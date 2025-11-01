@@ -109,7 +109,14 @@ class _SelectTechnicianScreenState extends State<SelectTechnicianScreen> {
       if (mounted) {
         setState(() => _isBooking = false);
         if (result != null && result['booking'] != null) {
-          final bookingId = result['booking']['_id'];
+          // Backend returns 'id', not '_id'
+          final bookingId = (result['booking']['id'] as String?) ?? '';
+          
+          if (bookingId.isEmpty) {
+            _showSnackBar('Failed to create booking: Invalid booking ID');
+            return;
+          }
+          
           _showSnackBar('Booking created successfully with $technicianName!');
           
           // Navigate to tracking screen
@@ -395,13 +402,18 @@ class _SelectTechnicianScreenState extends State<SelectTechnicianScreen> {
     );
   }
   Widget _buildTechnicianCard(Map<String, dynamic> tech) {
-    final user = tech['user'];
-    final name = user?['name'] ?? 'Unknown';
-    final phone = user?['phone'] ?? '';
-    final distance = tech['distance'];
-    final rating = tech['rating'] ?? 4.5;
-    final skills = tech['skills'] as List<dynamic>? ?? [];
-    final techId = tech['_id'];
+    final user = tech['user'] as Map<String, dynamic>?;
+    final name = (user?['name'] as String?) ?? 'Unknown';
+    final phone = (user?['phone'] as String?) ?? '';
+    final distance = tech['distance'] as double?;
+    final rating = (tech['rating'] as num?)?.toDouble() ?? 4.5;
+    final skills = (tech['skills'] as List<dynamic>?) ?? [];
+    final techId = (tech['_id'] as String?) ?? '';
+    
+    // Skip rendering if techId is empty
+    if (techId.isEmpty) {
+      return const SizedBox.shrink();
+    }
 
     return Container(
       margin: const EdgeInsets.only(bottom: 16),

@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:share_plus/share_plus.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'dart:io';
 import '../../services/api.dart';
 import '../login_screen.dart';
 
@@ -11,14 +14,9 @@ class UserSettingsScreen extends StatefulWidget {
 }
 
 class _UserSettingsScreenState extends State<UserSettingsScreen> {
-  bool _emailNotifications = true;
-  bool _pushNotifications = true;
-  bool _bookingReminders = true;
-  bool _smsNotifications = false;
-  bool _darkMode = false;
-  bool _biometricLogin = false;
-  String _language = 'English';
-  String _currency = 'LKR (₹)';
+  bool _autoBackup = true;
+  bool _twoFactorEnabled = false;
+  String _defaultLocation = 'Not set';
 
   @override
   void initState() {
@@ -29,14 +27,9 @@ class _UserSettingsScreenState extends State<UserSettingsScreen> {
   Future<void> _loadSettings() async {
     final prefs = await SharedPreferences.getInstance();
     setState(() {
-      _emailNotifications = prefs.getBool('emailNotifications') ?? true;
-      _pushNotifications = prefs.getBool('pushNotifications') ?? true;
-      _bookingReminders = prefs.getBool('bookingReminders') ?? true;
-      _smsNotifications = prefs.getBool('smsNotifications') ?? false;
-      _darkMode = prefs.getBool('darkMode') ?? false;
-      _biometricLogin = prefs.getBool('biometricLogin') ?? false;
-      _language = prefs.getString('language') ?? 'English';
-      _currency = prefs.getString('currency') ?? 'LKR (₹)';
+      _autoBackup = prefs.getBool('autoBackup') ?? true;
+      _twoFactorEnabled = prefs.getBool('twoFactorEnabled') ?? false;
+      _defaultLocation = prefs.getString('defaultLocation') ?? 'Not set';
     });
   }
 
@@ -49,66 +42,6 @@ class _UserSettingsScreenState extends State<UserSettingsScreen> {
     }
   }
 
-  Future<void> _changePassword() async {
-    final TextEditingController currentPasswordController = TextEditingController();
-    final TextEditingController newPasswordController = TextEditingController();
-    final TextEditingController confirmPasswordController = TextEditingController();
-
-    await showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Change Password'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: currentPasswordController,
-              obscureText: true,
-              decoration: const InputDecoration(
-                labelText: 'Current Password',
-                border: OutlineInputBorder(),
-              ),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: newPasswordController,
-              obscureText: true,
-              decoration: const InputDecoration(
-                labelText: 'New Password',
-                border: OutlineInputBorder(),
-              ),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: confirmPasswordController,
-              obscureText: true,
-              decoration: const InputDecoration(
-                labelText: 'Confirm New Password',
-                border: OutlineInputBorder(),
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              if (newPasswordController.text == confirmPasswordController.text) {
-                Navigator.pop(context);
-                _showSnackBar('Password changed successfully');
-              } else {
-                _showSnackBar('Passwords do not match');
-              }
-            },
-            child: const Text('Change'),
-          ),
-        ],
-      ),
-    );
-  }
 
   Future<void> _logout() async {
     final confirm = await showDialog<bool>(
@@ -159,131 +92,128 @@ class _UserSettingsScreenState extends State<UserSettingsScreen> {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          _buildSection(
-            icon: Icons.notifications_outlined,
-            title: 'Notifications',
-            children: [
-              _buildSwitchTile(
-                'Enable Notifications',
-                'Receive push notifications',
-                _pushNotifications,
-                (value) {
-                  setState(() => _pushNotifications = value);
-                  _saveSetting('pushNotifications', value);
-                },
-              ),
-              _buildSwitchTile(
-                'Push Notifications',
-                'Receive push notifications',
-                _pushNotifications,
-                (value) {
-                  setState(() => _pushNotifications = value);
-                  _saveSetting('pushNotifications', value);
-                },
-              ),
-              _buildSwitchTile(
-                'Email Notifications',
-                'Receive email updates',
-                _emailNotifications,
-                (value) {
-                  setState(() => _emailNotifications = value);
-                  _saveSetting('emailNotifications', value);
-                },
-              ),
-              _buildSwitchTile(
-                'Booking Reminders',
-                'Receive booking reminders',
-                _bookingReminders,
-                (value) {
-                  setState(() => _bookingReminders = value);
-                  _saveSetting('bookingReminders', value);
-                },
-              ),
-              _buildSwitchTile(
-                'SMS Notifications',
-                'Receive SMS updates',
-                _smsNotifications,
-                (value) {
-                  setState(() => _smsNotifications = value);
-                  _saveSetting('smsNotifications', value);
-                },
-              ),
-            ],
+          // Two-Factor Authentication
+          _buildActionTile(
+            'Two-Factor Authentication',
+            _twoFactorEnabled ? 'Enabled' : 'Add extra security',
+            Icons.chevron_right,
+            () => _showTwoFactorDialog(),
+            leadingIcon: Icons.shield_outlined,
+          ),
+          const SizedBox(height: 8),
+          
+          // Privacy Policy
+          _buildActionTile(
+            'Privacy Policy',
+            'View our privacy policy',
+            Icons.chevron_right,
+            () => _showPrivacyPolicy(),
+            leadingIcon: Icons.privacy_tip_outlined,
           ),
           const SizedBox(height: 16),
-          _buildSection(
-            icon: Icons.palette_outlined,
-            title: 'Appearance',
-            children: [
-              _buildSwitchTile(
-                'Dark Mode',
-                'Enable dark theme',
-                _darkMode,
-                (value) {
-                  setState(() => _darkMode = value);
-                  _saveSetting('darkMode', value);
-                },
-              ),
-              _buildSelectTile(
-                'Language',
-                'App language',
-                _language,
-                () => _showLanguageDialog(),
-              ),
-              _buildSelectTile(
-                'Currency',
-                'Display currency',
-                _currency,
-                () => _showCurrencyDialog(),
-              ),
-            ],
+          
+          // Preferences Section
+          _buildSectionHeader('Preferences'),
+          const SizedBox(height: 8),
+          
+          _buildActionTile(
+            'Default Location',
+            _defaultLocation,
+            Icons.chevron_right,
+            () => _showDefaultLocationDialog(),
+            leadingIcon: Icons.location_on_outlined,
+          ),
+          const SizedBox(height: 8),
+          
+          _buildActionTile(
+            'Service Preferences',
+            'Customize service options',
+            Icons.chevron_right,
+            () => _showServicePreferences(),
+            leadingIcon: Icons.settings_outlined,
+          ),
+          const SizedBox(height: 8),
+          
+          _buildActionTile(
+            'Payment Methods',
+            'Manage payment options',
+            Icons.chevron_right,
+            () => _showPaymentMethods(),
+            leadingIcon: Icons.credit_card_outlined,
           ),
           const SizedBox(height: 16),
-          _buildSection(
-            icon: Icons.security_outlined,
-            title: 'Security & Privacy',
-            children: [
-              _buildSwitchTile(
-                'Biometric Login',
-                'Use fingerprint or face ID',
-                _biometricLogin,
-                (value) {
-                  setState(() => _biometricLogin = value);
-                  _saveSetting('biometricLogin', value);
-                },
-              ),
-              _buildActionTile(
-                'Change Password',
-                'Update your password',
-                Icons.chevron_right,
-                _changePassword,
-              ),
-            ],
+          
+          // Data & Storage Section
+          _buildSectionHeader('Data & Storage'),
+          const SizedBox(height: 8),
+          
+          _buildSwitchTile(
+            'Auto Backup',
+            'Backup data automatically',
+            _autoBackup,
+            (value) {
+              setState(() => _autoBackup = value);
+              _saveSetting('autoBackup', value);
+            },
+            leadingIcon: Icons.backup_outlined,
+          ),
+          const SizedBox(height: 8),
+          
+          _buildActionTile(
+            'Clear Cache',
+            'Free up storage space',
+            Icons.chevron_right,
+            () => _showClearCacheDialog(),
+            leadingIcon: Icons.cleaning_services_outlined,
+          ),
+          const SizedBox(height: 8),
+          
+          _buildActionTile(
+            'Data Usage',
+            'View data consumption',
+            Icons.chevron_right,
+            () => _showDataUsage(),
+            leadingIcon: Icons.data_usage_outlined,
+          ),
+          const SizedBox(height: 8),
+          
+          _buildActionTile(
+            'Export Data',
+            'Download your data',
+            Icons.chevron_right,
+            () => _exportData(),
+            leadingIcon: Icons.download_outlined,
           ),
           const SizedBox(height: 16),
-          _buildSection(
-            icon: Icons.info_outline,
-            title: 'About',
-            children: [
-              _buildActionTile(
-                'Terms of Service',
-                '',
-                Icons.chevron_right,
-                () => _showSnackBar('Terms of Service'),
-              ),
-              _buildActionTile(
-                'Privacy Policy',
-                '',
-                Icons.chevron_right,
-                () => _showSnackBar('Privacy Policy'),
-              ),
-              _buildActionTile(
-                'Help & Support',
-                '',
-                Icons.chevron_right,
-                () => _showSnackBar('Help & Support'),
-              ),
-            ],
+          
+          // Support Section
+          _buildSectionHeader('Support'),
+          const SizedBox(height: 8),
+          
+          _buildActionTile(
+            'Rate App',
+            'Rate us on the app store',
+            Icons.chevron_right,
+            () => _rateApp(),
+            leadingIcon: Icons.star_outline,
+          ),
+          const SizedBox(height: 8),
+          
+          _buildActionTile(
+            'Share App',
+            'Share with friends',
+            Icons.chevron_right,
+            () => _shareApp(),
+            leadingIcon: Icons.share_outlined,
+          ),
+          const SizedBox(height: 8),
+          
+          _buildActionTile(
+            'App Version',
+            'Version 1.0.0',
+            Icons.chevron_right,
+            () => _showSnackBar('App Version 1.0.0'),
+            leadingIcon: Icons.info_outline,
           ),
           const SizedBox(height: 24),
           Padding(
@@ -317,38 +247,21 @@ class _UserSettingsScreenState extends State<UserSettingsScreen> {
     );
   }
 
-  Widget _buildSection({
-    required IconData icon,
-    required String title,
-    required List<Widget> children,
-  }) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey[200]!),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+  Widget _buildSectionHeader(String title) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+      child: Row(
         children: [
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: Row(
-              children: [
-                Icon(icon, size: 20, color: Colors.grey[700]),
-                const SizedBox(width: 8),
-                Text(
-                  title,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ],
+          Icon(Icons.menu, size: 20, color: Colors.grey[700]),
+          const SizedBox(width: 8),
+          Text(
+            title,
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              color: Colors.grey[800],
             ),
           ),
-          Divider(height: 1, color: Colors.grey[200]),
-          ...children,
         ],
       ),
     );
@@ -359,110 +272,395 @@ class _UserSettingsScreenState extends State<UserSettingsScreen> {
     String subtitle,
     bool value,
     ValueChanged<bool> onChanged,
+    {IconData? leadingIcon}
   ) {
-    return ListTile(
-      title: Text(title, style: const TextStyle(fontSize: 14)),
-      subtitle: Text(subtitle, style: TextStyle(fontSize: 12, color: Colors.grey[600])),
-      trailing: Switch(
-        value: value,
-        onChanged: onChanged,
-        activeTrackColor: Colors.blueAccent,
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey[200]!),
+      ),
+      child: ListTile(
+        leading: leadingIcon != null
+            ? Icon(leadingIcon, size: 24, color: Colors.grey[700])
+            : null,
+        title: Text(title, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
+        subtitle: Text(subtitle, style: TextStyle(fontSize: 12, color: Colors.grey[600])),
+        trailing: Switch(
+          value: value,
+          onChanged: onChanged,
+          activeThumbColor: Colors.teal,
+        ),
       ),
     );
   }
 
-  Widget _buildSelectTile(
-    String title,
-    String subtitle,
-    String value,
-    VoidCallback onTap,
-  ) {
-    return ListTile(
-      title: Text(title, style: const TextStyle(fontSize: 14)),
-      subtitle: Text(subtitle, style: TextStyle(fontSize: 12, color: Colors.grey[600])),
-      trailing: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(value, style: TextStyle(color: Colors.grey[700])),
-          const SizedBox(width: 4),
-          const Icon(Icons.chevron_right, size: 20),
-        ],
-      ),
-      onTap: onTap,
-    );
-  }
 
   Widget _buildActionTile(
     String title,
     String subtitle,
     IconData trailingIcon,
     VoidCallback onTap,
+    {IconData? leadingIcon}
   ) {
-    return ListTile(
-      title: Text(title, style: const TextStyle(fontSize: 14)),
-      subtitle: subtitle.isNotEmpty
-          ? Text(subtitle, style: TextStyle(fontSize: 12, color: Colors.grey[600]))
-          : null,
-      trailing: Icon(trailingIcon, size: 20, color: Colors.grey[600]),
-      onTap: onTap,
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey[200]!),
+      ),
+      child: ListTile(
+        leading: leadingIcon != null
+            ? Icon(leadingIcon, size: 24, color: Colors.grey[700])
+            : null,
+        title: Text(title, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
+        subtitle: subtitle.isNotEmpty
+            ? Text(subtitle, style: TextStyle(fontSize: 12, color: Colors.grey[600]))
+            : null,
+        trailing: Icon(trailingIcon, size: 20, color: Colors.grey[600]),
+        onTap: onTap,
+      ),
     );
   }
 
-  Future<void> _showLanguageDialog() async {
-    final languages = ['English', 'Sinhala', 'Tamil'];
-    final selected = await showDialog<String>(
+  Future<void> _showTwoFactorDialog() async {
+    await showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Select Language'),
+        title: const Text('Two-Factor Authentication'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
-          children: languages.map((lang) {
-            return ListTile(
-              title: Text(lang),
-              leading: Radio<String>(
-                value: lang,
-                groupValue: _language,
-                onChanged: (value) => Navigator.pop(context, value),
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              _twoFactorEnabled ? 'Two-factor authentication is currently enabled.' : 'Enable two-factor authentication for extra security.',
+              style: const TextStyle(fontSize: 14),
+            ),
+            const SizedBox(height: 16),
+            SwitchListTile(
+              title: const Text('Enable 2FA'),
+              value: _twoFactorEnabled,
+              onChanged: (value) {
+                setState(() => _twoFactorEnabled = value);
+                _saveSetting('twoFactorEnabled', value);
+                Navigator.pop(context);
+                _showSnackBar(value ? '2FA enabled' : '2FA disabled');
+              },
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Close'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _showPrivacyPolicy() async {
+    await showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Privacy Policy'),
+        content: const SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'QuickFix Privacy Policy',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
               ),
-              onTap: () => Navigator.pop(context, lang),
-            );
-          }).toList(),
+              SizedBox(height: 12),
+              Text(
+                'Last updated: October 2024\n\n'
+                '1. Information We Collect\n'
+                'We collect information you provide directly to us, including name, email, phone number, and location data.\n\n'
+                '2. How We Use Your Information\n'
+                'We use your information to provide, maintain, and improve our services, process bookings, and communicate with you.\n\n'
+                '3. Data Security\n'
+                'We implement appropriate security measures to protect your personal information.\n\n'
+                '4. Your Rights\n'
+                'You have the right to access, update, or delete your personal information at any time.',
+                style: TextStyle(fontSize: 14),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Close'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _showDefaultLocationDialog() async {
+    final TextEditingController locationController = TextEditingController(text: _defaultLocation == 'Not set' ? '' : _defaultLocation);
+
+    await showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Default Location'),
+        content: TextField(
+          controller: locationController,
+          decoration: const InputDecoration(
+            labelText: 'Enter your default address',
+            border: OutlineInputBorder(),
+            hintText: 'e.g., 123 Main St, City',
+          ),
+          maxLines: 2,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              if (locationController.text.isNotEmpty) {
+                setState(() => _defaultLocation = locationController.text);
+                _saveSetting('defaultLocation', locationController.text);
+                Navigator.pop(context);
+                _showSnackBar('Default location saved');
+              }
+            },
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _showServicePreferences() async {
+    final prefs = await SharedPreferences.getInstance();
+    bool notifyNewServices = prefs.getBool('notifyNewServices') ?? true;
+    bool autoAcceptBookings = prefs.getBool('autoAcceptBookings') ?? false;
+
+    await showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: const Text('Service Preferences'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              SwitchListTile(
+                title: const Text('Notify about new services'),
+                subtitle: const Text('Get notified when new services are available'),
+                value: notifyNewServices,
+                onChanged: (value) {
+                  setDialogState(() => notifyNewServices = value);
+                  _saveSetting('notifyNewServices', value);
+                },
+              ),
+              SwitchListTile(
+                title: const Text('Auto-accept bookings'),
+                subtitle: const Text('Automatically accept booking requests'),
+                value: autoAcceptBookings,
+                onChanged: (value) {
+                  setDialogState(() => autoAcceptBookings = value);
+                  _saveSetting('autoAcceptBookings', value);
+                },
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Close'),
+            ),
+          ],
         ),
       ),
     );
-
-    if (selected != null) {
-      setState(() => _language = selected);
-      _saveSetting('language', selected);
-    }
   }
 
-  Future<void> _showCurrencyDialog() async {
-    final currencies = ['LKR (₹)', 'USD (\$)', 'EUR (€)'];
-    final selected = await showDialog<String>(
+  Future<void> _showPaymentMethods() async {
+    await showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Select Currency'),
+        title: const Text('Payment Methods'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
-          children: currencies.map((curr) {
-            return ListTile(
-              title: Text(curr),
-              leading: Radio<String>(
-                value: curr,
-                groupValue: _currency,
-                onChanged: (value) => Navigator.pop(context, value),
-              ),
-              onTap: () => Navigator.pop(context, curr),
-            );
-          }).toList(),
+          children: [
+            ListTile(
+              leading: const Icon(Icons.credit_card),
+              title: const Text('Credit/Debit Card'),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () {
+                Navigator.pop(context);
+                _showSnackBar('Card payment setup');
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.account_balance_wallet),
+              title: const Text('Digital Wallet'),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () {
+                Navigator.pop(context);
+                _showSnackBar('Wallet payment setup');
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.money),
+              title: const Text('Cash on Service'),
+              trailing: const Icon(Icons.check_circle, color: Colors.green),
+              onTap: () {},
+            ),
+          ],
         ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Close'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _showClearCacheDialog() async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Clear Cache'),
+        content: const Text('Are you sure you want to clear the cache? This will free up storage space.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Clear'),
+          ),
+        ],
       ),
     );
 
-    if (selected != null) {
-      setState(() => _currency = selected);
-      _saveSetting('currency', selected);
+    if (confirm == true) {
+      // Simulate cache clearing
+      await Future.delayed(const Duration(milliseconds: 500));
+      _showSnackBar('Cache cleared successfully (12.5 MB freed)');
     }
   }
+
+  Future<void> _showDataUsage() async {
+    await showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Data Usage'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Current Month',
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+            ),
+            const SizedBox(height: 12),
+            _buildDataUsageRow('Images', '45.2 MB'),
+            _buildDataUsageRow('Videos', '12.8 MB'),
+            _buildDataUsageRow('Documents', '8.5 MB'),
+            _buildDataUsageRow('Cache', '25.3 MB'),
+            const Divider(height: 24),
+            _buildDataUsageRow('Total', '91.8 MB', isBold: true),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Close'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDataUsageRow(String label, String value, {bool isBold = false}) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: isBold ? FontWeight.bold : FontWeight.normal,
+            ),
+          ),
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: isBold ? FontWeight.bold : FontWeight.normal,
+              color: Colors.grey[700],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _exportData() async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Export Data'),
+        content: const Text(
+          'Your data will be exported as a JSON file and saved to your device. This includes your profile information, bookings, and preferences.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Export'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      // Simulate data export
+      await Future.delayed(const Duration(seconds: 1));
+      _showSnackBar('Data exported successfully to Downloads folder');
+    }
+  }
+
+  Future<void> _rateApp() async {
+    final Uri appStoreUrl = Platform.isIOS
+        ? Uri.parse('https://apps.apple.com/app/quickfix')
+        : Uri.parse('https://play.google.com/store/apps/details?id=com.quickfix.app');
+
+    try {
+      if (await canLaunchUrl(appStoreUrl)) {
+        await launchUrl(appStoreUrl, mode: LaunchMode.externalApplication);
+      } else {
+        _showSnackBar('Could not open app store');
+      }
+    } catch (e) {
+      _showSnackBar('Error opening app store');
+    }
+  }
+
+  Future<void> _shareApp() async {
+    try {
+      await Share.share(
+        'Check out QuickFix - Your one-stop solution for home services! Download now: https://quickfix.app',
+        subject: 'QuickFix App',
+      );
+    } catch (e) {
+      _showSnackBar('Error sharing app');
+    }
+  }
+
 }
