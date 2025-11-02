@@ -19,19 +19,94 @@ class _UserBookingsScreenState extends State<UserBookingsScreen> {
   void initState() {
     super.initState();
     _loadBookings();
+    _setupSocketListeners();
+  }
+
+  void _setupSocketListeners() async {
+    // Initialize socket connection
+    Api.initSocket();
+    
+    // Get user profile to join their room
+    try {
+      final profileData = await Api.getUserProfile();
+      if (profileData != null && profileData['_id'] != null) {
+        final userId = profileData['_id'];
+        Api.socket?.emit('user:join', {'userId': userId});
+        print('User joined room: user_$userId');
+      }
+    } catch (e) {
+      print('Error joining user room: $e');
+    }
+    
+    // Listen for booking updates (status changes, assignments, etc.)
+    Api.socket?.on('booking:updated', (data) {
+      print('Booking updated via socket: $data');
+      if (mounted) {
+        _loadBookings(); // Reload all bookings when any update occurs
+      }
+    });
+
+    // Listen for booking status changes
+    Api.socket?.on('booking:status', (data) {
+      print('Booking status changed via socket: $data');
+      if (mounted) {
+        _loadBookings();
+      }
+    });
+
+    // Listen for technician acceptance
+    Api.socket?.on('booking:accepted', (data) {
+      print('Booking accepted via socket: $data');
+      if (mounted) {
+        _loadBookings();
+      }
+    });
+
+    // Listen for booking completion
+    Api.socket?.on('booking:completed', (data) {
+      print('Booking completed via socket: $data');
+      if (mounted) {
+        _loadBookings();
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    // Clean up socket listeners
+    Api.socket?.off('booking:updated');
+    Api.socket?.off('booking:status');
+    Api.socket?.off('booking:accepted');
+    Api.socket?.off('booking:completed');
+    super.dispose();
   }
 
   Future<void> _loadBookings() async {
     setState(() => _isLoading = true);
     try {
       final bookingsData = await Api.getUserBookings();
+      print('Bookings data received: $bookingsData');
+      
       if (mounted) {
         setState(() {
-          _bookings = bookingsData?.map((b) => Booking.fromJson(b)).toList();
+          if (bookingsData != null) {
+            _bookings = [];
+            for (var i = 0; i < bookingsData.length; i++) {
+              try {
+                final booking = Booking.fromJson(bookingsData[i]);
+                _bookings!.add(booking);
+              } catch (e) {
+                print('Error parsing booking $i: $e');
+                print('Booking data: ${bookingsData[i]}');
+              }
+            }
+          }
           _isLoading = false;
         });
       }
-    } catch (e) {
+    } catch (e, stackTrace) {
+      print('Error loading bookings: $e');
+      print('Stack trace: $stackTrace');
       if (mounted) {
         setState(() => _isLoading = false);
         ScaffoldMessenger.of(context).showSnackBar(
@@ -177,7 +252,7 @@ class _UserBookingsScreenState extends State<UserBookingsScreen> {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        booking.location['address'] ?? 'No address provided',
+                        booking.location?['address'] ?? 'No address provided',
                         style: TextStyle(
                           color: Colors.grey[600],
                           fontSize: 14,
@@ -329,6 +404,20 @@ class _UserBookingsScreenState extends State<UserBookingsScreen> {
       return;
     }
 
+    // Handle both coordinate formats: [lng, lat] array or lat/lng fields
+    double userLat = 0;
+    double userLng = 0;
+    
+    if (booking.location != null) {
+      if (booking.location!.containsKey('coordinates') && booking.location!['coordinates'] is List) {
+        userLng = booking.location!['coordinates'][0].toDouble();
+        userLat = booking.location!['coordinates'][1].toDouble();
+      } else {
+        userLat = (booking.location!['lat'] ?? 0).toDouble();
+        userLng = (booking.location!['lng'] ?? 0).toDouble();
+      }
+    }
+
     Navigator.push(
       context,
       MaterialPageRoute(
@@ -336,9 +425,9 @@ class _UserBookingsScreenState extends State<UserBookingsScreen> {
           bookingId: booking.id,
           technicianName: booking.technician!.user!.name,
           serviceType: booking.serviceType,
-          userLat: booking.location['coordinates'][1].toDouble(),
-          userLng: booking.location['coordinates'][0].toDouble(),
-          userAddress: booking.location['address'] ?? 'Your location',
+          userLat: userLat,
+          userLng: userLng,
+          userAddress: booking.location?['address'] ?? 'Your location',
         ),
       ),
     );

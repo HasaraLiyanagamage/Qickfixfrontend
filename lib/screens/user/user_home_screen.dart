@@ -518,7 +518,7 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  booking.location['address'] ?? 'No address',
+                  booking.location?['address'] ?? 'No address',
                   style: TextStyle(
                     color: Colors.grey[600],
                     fontSize: 12,

@@ -571,7 +571,7 @@ class _TechnicianHomeScreenState extends State<TechnicianHomeScreen> {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      job.location['address'] ?? 'No address',
+                      job.location?['address'] ?? 'No address',
                       style: TextStyle(
                         color: Colors.grey[600],
                         fontSize: 12,

@@ -227,7 +227,7 @@ class _TechJobsScreenState extends State<TechJobsScreen> {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        job.location['address'] ?? 'No address provided',
+                        job.location?['address'] ?? 'No address provided',
                         style: TextStyle(
                           color: Colors.grey[600],
                           fontSize: 14,

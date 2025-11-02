@@ -99,15 +99,30 @@ class Technician {
   });
 
   factory Technician.fromJson(Map<String, dynamic> json) {
+    // Handle user field - can be String (ID) or Map (populated object)
+    String userId;
+    User? user;
+    if (json['user'] is String) {
+      userId = json['user'];
+      user = null;
+    } else if (json['user'] is Map) {
+      final userMap = json['user'] as Map<String, dynamic>;
+      userId = userMap['_id'] ?? userMap['id'] ?? '';
+      user = User.fromJson(userMap);
+    } else {
+      userId = '';
+      user = null;
+    }
+
     return Technician(
       id: json['_id'] ?? json['id'] ?? '',
-      userId: json['user'] ?? '',
-      user: json['user'] != null ? User.fromJson(json['user']) : null,
+      userId: userId,
+      user: user,
       skills: List<String>.from(json['skills'] ?? []),
       isAvailable: json['isAvailable'] ?? true,
       location: json['location'],
-      rating: json['rating'],
-      totalJobs: json['totalJobs'],
+      rating: json['rating']?.toInt(),
+      totalJobs: json['totalJobs']?.toInt(),
       createdAt: json['createdAt'] != null ? DateTime.parse(json['createdAt']) : null,
       updatedAt: json['updatedAt'] != null ? DateTime.parse(json['updatedAt']) : null,
     );
@@ -153,7 +168,7 @@ class Booking {
   final String? technicianId;
   final Technician? technician;
   final String serviceType;
-  final Map<String, dynamic> location;
+  final Map<String, dynamic>? location;
   final String status;
   final DateTime createdAt;
   final DateTime? updatedAt;
@@ -178,19 +193,63 @@ class Booking {
   });
 
   factory Booking.fromJson(Map<String, dynamic> json) {
+    // Handle user field - can be String (ID) or Map (populated object)
+    String userId;
+    User? user;
+    if (json['user'] is String) {
+      userId = json['user'];
+      user = null;
+    } else if (json['user'] is Map) {
+      final userMap = json['user'] as Map<String, dynamic>;
+      userId = userMap['_id'] ?? userMap['id'] ?? '';
+      user = User.fromJson(userMap);
+    } else {
+      userId = '';
+      user = null;
+    }
+
+    // Handle technician field - can be String (ID) or Map (populated object)
+    String? technicianId;
+    Technician? technician;
+    if (json['technician'] is String) {
+      technicianId = json['technician'];
+      technician = null;
+    } else if (json['technician'] is Map) {
+      final techMap = json['technician'] as Map<String, dynamic>;
+      technicianId = techMap['_id'] ?? techMap['id'] ?? '';
+      technician = Technician.fromJson(techMap);
+    } else {
+      technicianId = null;
+      technician = null;
+    }
+
+    // Parse createdAt - handle both createdAt and requestedAt fields
+    DateTime createdAt;
+    try {
+      if (json['createdAt'] != null) {
+        createdAt = DateTime.parse(json['createdAt']);
+      } else if (json['requestedAt'] != null) {
+        createdAt = DateTime.parse(json['requestedAt']);
+      } else {
+        createdAt = DateTime.now();
+      }
+    } catch (e) {
+      createdAt = DateTime.now();
+    }
+
     return Booking(
       id: json['_id'] ?? json['id'] ?? '',
-      userId: json['user'] ?? '',
-      user: json['user'] != null ? User.fromJson(json['user']) : null,
-      technicianId: json['technician'],
-      technician: json['technician'] != null ? Technician.fromJson(json['technician']) : null,
+      userId: userId,
+      user: user,
+      technicianId: technicianId,
+      technician: technician,
       serviceType: json['serviceType'] ?? '',
-      location: Map<String, dynamic>.from(json['location'] ?? {}),
+      location: json['location'] != null ? Map<String, dynamic>.from(json['location']) : {},
       status: json['status'] ?? 'requested',
-      createdAt: DateTime.parse(json['createdAt'] ?? DateTime.now().toIso8601String()),
+      createdAt: createdAt,
       updatedAt: json['updatedAt'] != null ? DateTime.parse(json['updatedAt']) : null,
-      etaMinutes: json['etaMinutes'],
-      totalCost: json['totalCost']?.toDouble(),
+      etaMinutes: json['etaMinutes']?.toInt(),
+      totalCost: (json['totalCost'] ?? json['priceEstimate'])?.toDouble(),
       notes: json['notes'],
     );
   }
@@ -306,11 +365,11 @@ class SystemStats {
 
   factory SystemStats.fromJson(Map<String, dynamic> json) {
     return SystemStats(
-      totalUsers: json['totalUsers'] ?? 0,
-      totalTechnicians: json['totalTechnicians'] ?? 0,
-      totalBookings: json['totalBookings'] ?? 0,
-      activeBookings: json['activeBookings'] ?? 0,
-      completedBookings: json['completedBookings'] ?? 0,
+      totalUsers: (json['totalUsers'] ?? 0).toInt(),
+      totalTechnicians: (json['totalTechnicians'] ?? 0).toInt(),
+      totalBookings: (json['totalBookings'] ?? 0).toInt(),
+      activeBookings: (json['activeBookings'] ?? 0).toInt(),
+      completedBookings: (json['completedBookings'] ?? 0).toInt(),
     );
   }
 }
