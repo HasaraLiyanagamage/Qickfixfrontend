@@ -261,7 +261,10 @@ class Api {
     try {
       final r = await http.patch(
         Uri.parse('$base/api/booking/$bookingId/status'),
-        headers: {'Authorization': 'Bearer $token'},
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
         body: jsonEncode({'status': status}),
       );
       if (r.statusCode == 200) return jsonDecode(r.body);
@@ -415,7 +418,10 @@ class Api {
     try {
       final r = await http.patch(
         Uri.parse('$base/api/admin/users/$userId/status'),
-        headers: {'Authorization': 'Bearer $token'},
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
         body: jsonEncode({'status': status}),
       );
       if (r.statusCode == 200) return jsonDecode(r.body);

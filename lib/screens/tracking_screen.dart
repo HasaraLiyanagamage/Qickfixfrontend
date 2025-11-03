@@ -41,7 +41,8 @@ class _BookingTrackingScreenState extends State<BookingTrackingScreen> {
   String _bookingStatus = 'pending';
   
   Timer? _locationUpdateTimer;
-  bool _mapError = false;
+  bool _mapError = false; 
+
 
   @override
   void initState() {
@@ -83,8 +84,7 @@ class _BookingTrackingScreenState extends State<BookingTrackingScreen> {
   }
 
   Future<void> _fetchBookingDetails() async {
-    // This would fetch the latest booking details from the API
-    // For now, we'll rely on socket updates
+   
   }
 
   void _updateTechnicianLocation(Map<String, dynamic> data) {
@@ -221,9 +221,16 @@ class _BookingTrackingScreenState extends State<BookingTrackingScreen> {
                     zoom: 14,
                   ),
                   onMapCreated: (GoogleMapController controller) {
-                    if (!_controller.isCompleted) {
-                      _controller.complete(controller);
-                      _mapController = controller;
+                    try {
+                      if (!_controller.isCompleted) {
+                        _controller.complete(controller);
+                        _mapController = controller;
+                      }
+                    } catch (e) {
+                      print('Error creating map: $e');
+                      if (mounted) {
+                        setState(() => _mapError = true);
+                      }
                     }
                   },
                   markers: _markers,
@@ -497,31 +504,149 @@ class _BookingTrackingScreenState extends State<BookingTrackingScreen> {
 
   Widget _buildMapErrorWidget() {
     return Container(
-      color: Colors.grey[100],
-      child: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.map, size: 64, color: Colors.grey),
-            const SizedBox(height: 16),
-            Text(
-              'Map unavailable',
-              style: TextStyle(fontSize: 18, color: Colors.grey[600]),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Unable to load Google Maps',
-              style: TextStyle(fontSize: 14, color: Colors.grey[500]),
-            ),
-            const SizedBox(height: 16),
-            ElevatedButton(
-              onPressed: () {
-                setState(() => _mapError = false);
-              },
-              child: const Text('Retry'),
-            ),
-          ],
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [Colors.blue[50]!, Colors.white],
         ),
+      ),
+      child: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.1),
+                      blurRadius: 10,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: Icon(Icons.location_on, size: 64, color: Colors.blueAccent),
+              ),
+              const SizedBox(height: 24),
+              Text(
+                'Tracking Your Technician',
+                style: TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.grey[800],
+                ),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                'Map view temporarily unavailable',
+                style: TextStyle(fontSize: 16, color: Colors.grey[600]),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 8),
+              Container(
+                padding: const EdgeInsets.all(16),
+                margin: const EdgeInsets.symmetric(vertical: 16),
+                decoration: BoxDecoration(
+                  color: Colors.amber[50],
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.amber[200]!),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.info_outline, color: Colors.amber[700], size: 20),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        'Enable Google Maps billing to view live tracking',
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: Colors.amber[900],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 24),
+              if (_technicianLocation != null && _distanceInKm != null) ...[
+                _buildInfoCard(
+                  icon: Icons.straighten,
+                  title: 'Distance',
+                  value: '${_distanceInKm!.toStringAsFixed(1)} km',
+                  color: Colors.blue,
+                ),
+                const SizedBox(height: 12),
+              ],
+              if (_etaInMinutes != null)
+                _buildInfoCard(
+                  icon: Icons.access_time,
+                  title: 'Estimated Arrival',
+                  value: '$_etaInMinutes minutes',
+                  color: Colors.green,
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildInfoCard({
+    required IconData icon,
+    required String title,
+    required String value,
+    required Color color,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(icon, color: color, size: 24),
+          ),
+          const SizedBox(width: 16),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Colors.grey[600],
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                value,
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }

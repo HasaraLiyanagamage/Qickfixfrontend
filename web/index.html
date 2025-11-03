@@ -53,8 +53,28 @@
     window.firebaseApp = app;
   </script>
 
-  <!-- Google Maps API -->
-  <script async defer src="https://maps.googleapis.com/maps/api/js?key=AIzaSyASXpbLwjfrt0Hu0nveTrCTbFhSV502m30&libraries=places"></script>
+  <!-- Google Maps API - DISABLED: Enable billing first -->
+  <!-- 
+  IMPORTANT: To enable Google Maps, you need to:
+  1. Go to https://console.cloud.google.com
+  2. Select project 'quickfixapp-3074a'
+  3. Enable billing for the project
+  4. Enable Maps JavaScript API
+  5. Uncomment the script below
+-->
+  
+  <script async defer src="https://maps.googleapis.com/maps/api/js?key=AIzaSyCuM0azsWGgHBDxEPMFePt35xzPY20FFLc&libraries=places"></script>
+  
+  
+  <!-- Google Maps Error Handler -->
+  <script>
+    // Temporarily disable maps to prevent billing errors
+    window.googleMapsDisabled = true;
+    
+    window.gm_authFailure = function() {
+      console.error('Google Maps authentication failed. Please enable billing in Google Cloud Console.');
+    };
+  </script>
 </head>
 <body>
   <script src="flutter_bootstrap.js" async></script>

@@ -85,7 +85,7 @@ class _UserBookingsScreenState extends State<UserBookingsScreen> {
     setState(() => _isLoading = true);
     try {
       final bookingsData = await Api.getUserBookings();
-      print('Bookings data received: $bookingsData');
+      print('Bookings data received: ${bookingsData?.length ?? 0} bookings');
       
       if (mounted) {
         setState(() {
@@ -94,6 +94,7 @@ class _UserBookingsScreenState extends State<UserBookingsScreen> {
             for (var i = 0; i < bookingsData.length; i++) {
               try {
                 final booking = Booking.fromJson(bookingsData[i]);
+                print('Booking ${i + 1}: ${booking.serviceType} - Status: ${booking.status}');
                 _bookings!.add(booking);
               } catch (e) {
                 print('Error parsing booking $i: $e');

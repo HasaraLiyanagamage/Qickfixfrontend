@@ -18,19 +18,85 @@ class _TechJobsScreenState extends State<TechJobsScreen> {
   void initState() {
     super.initState();
     _loadJobs();
+    _setupSocketListeners();
+  }
+
+  void _setupSocketListeners() async {
+    // Initialize socket connection
+    Api.initSocket();
+    
+    // Get technician profile to join their room
+    try {
+      final profileData = await Api.getTechnicianProfile();
+      if (profileData != null && profileData['_id'] != null) {
+        final techId = profileData['_id'];
+        Api.socket?.emit('technician:join', {'technicianId': techId});
+        print('Technician joined room: tech_$techId');
+      }
+    } catch (e) {
+      print('Error joining technician room: $e');
+    }
+    
+    // Listen for booking updates
+    Api.socket?.on('booking:updated', (data) {
+      print('Booking updated via socket: $data');
+      if (mounted) {
+        _loadJobs();
+      }
+    });
+
+    // Listen for booking status changes
+    Api.socket?.on('booking:status', (data) {
+      print('Booking status changed via socket: $data');
+      if (mounted) {
+        _loadJobs();
+      }
+    });
+
+    // Listen for booking assignments
+    Api.socket?.on('booking:assigned', (data) {
+      print('New booking assigned via socket: $data');
+      if (mounted) {
+        _loadJobs();
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    // Clean up socket listeners
+    Api.socket?.off('booking:updated');
+    Api.socket?.off('booking:status');
+    Api.socket?.off('booking:assigned');
+    super.dispose();
   }
 
   Future<void> _loadJobs() async {
     setState(() => _isLoading = true);
     try {
       final jobsData = await Api.getTechnicianJobs();
+      print('Jobs data received: ${jobsData?.length ?? 0} jobs');
+      
       if (mounted) {
         setState(() {
-          _allJobs = jobsData?.map((b) => Booking.fromJson(b)).toList();
+          if (jobsData != null) {
+            _allJobs = [];
+            for (var i = 0; i < jobsData.length; i++) {
+              try {
+                final job = Booking.fromJson(jobsData[i]);
+                print('Job ${i + 1}: ${job.serviceType} - Status: ${job.status}');
+                _allJobs!.add(job);
+              } catch (e) {
+                print('Error parsing job $i: $e');
+                print('Job data: ${jobsData[i]}');
+              }
+            }
+          }
           _isLoading = false;
         });
       }
     } catch (e) {
+      print('Error loading jobs: $e');
       if (mounted) {
         setState(() => _isLoading = false);
         ScaffoldMessenger.of(context).showSnackBar(
@@ -88,17 +154,20 @@ class _TechJobsScreenState extends State<TechJobsScreen> {
     try {
       final result = await Api.updateBookingStatus(job.id, newStatus);
       if (result != null && mounted) {
-        setState(() {
-          final index = _allJobs?.indexWhere((b) => b.id == job.id);
-          if (index != null && index >= 0) {
-            _allJobs![index] = job.copyWith(status: newStatus);
-          }
-        });
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Job status updated to $newStatus')),
         );
+        // Reload the entire list to get fresh data from server
+        _loadJobs();
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Failed to update job status')),
+          );
+        }
       }
     } catch (e) {
+      print('Error updating job status: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Error updating job status: $e')),
