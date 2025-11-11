@@ -2,8 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:provider/provider.dart';
 import 'dart:io';
 import '../../services/api.dart';
+import '../../providers/theme_provider.dart';
+import '../../providers/language_provider.dart';
+import '../../widgets/gradient_header.dart';
 import '../login_screen.dart';
 
 class UserSettingsScreen extends StatefulWidget {
@@ -83,15 +87,31 @@ class _UserSettingsScreenState extends State<UserSettingsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey[50],
-      appBar: AppBar(
-        title: const Text('Settings', style: TextStyle(fontWeight: FontWeight.bold)),
-        backgroundColor: Colors.white,
-        elevation: 0,
-      ),
-      body: ListView(
-        padding: const EdgeInsets.all(16),
+      body: Column(
         children: [
+          GradientHeader(
+            title: 'Settings',
+            subtitle: 'Customize your experience',
+            icon: Icons.settings,
+          ),
+          Expanded(
+            child: ListView(
+              padding: const EdgeInsets.all(16),
+              children: [
+          // Appearance Section
+          _buildSectionHeader('Appearance'),
+          const SizedBox(height: 8),
+          
+          _buildThemeTile(),
+          const SizedBox(height: 8),
+          
+          _buildLanguageTile(),
+          const SizedBox(height: 16),
+          
+          // Security Section
+          _buildSectionHeader('Security'),
+          const SizedBox(height: 8),
+          
           // Two-Factor Authentication
           _buildActionTile(
             'Two-Factor Authentication',
@@ -242,6 +262,9 @@ class _UserSettingsScreenState extends State<UserSettingsScreen> {
             ),
           ),
           const SizedBox(height: 24),
+              ],
+            ),
+          ),
         ],
       ),
     );
@@ -661,6 +684,114 @@ class _UserSettingsScreenState extends State<UserSettingsScreen> {
     } catch (e) {
       _showSnackBar('Error sharing app');
     }
+  }
+
+  Widget _buildThemeTile() {
+    final themeProvider = Provider.of<ThemeProvider>(context);
+    final isDark = themeProvider.isDarkMode;
+    
+    return Container(
+      decoration: BoxDecoration(
+        color: Theme.of(context).cardColor,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey[200]!),
+      ),
+      child: ListTile(
+        leading: Icon(
+          isDark ? Icons.dark_mode : Icons.light_mode,
+          size: 24,
+          color: Colors.grey[700],
+        ),
+        title: const Text(
+          'Dark Mode',
+          style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+        ),
+        subtitle: Text(
+          isDark ? 'Dark theme enabled' : 'Light theme enabled',
+          style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+        ),
+        trailing: Switch(
+          value: isDark,
+          onChanged: (value) {
+            themeProvider.toggleTheme();
+          },
+          activeThumbColor: Colors.blueAccent,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildLanguageTile() {
+    final languageProvider = Provider.of<LanguageProvider>(context);
+    final currentLanguage = LanguageProvider.supportedLanguages.firstWhere(
+      (lang) => lang['code'] == languageProvider.languageCode,
+      orElse: () => LanguageProvider.supportedLanguages[0],
+    );
+    
+    return Container(
+      decoration: BoxDecoration(
+        color: Theme.of(context).cardColor,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey[200]!),
+      ),
+      child: ListTile(
+        leading: Icon(Icons.language, size: 24, color: Colors.grey[700]),
+        title: const Text(
+          'Language',
+          style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+        ),
+        subtitle: Text(
+          currentLanguage['nativeName'] ?? 'English',
+          style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+        ),
+        trailing: Icon(Icons.chevron_right, size: 20, color: Colors.grey[600]),
+        onTap: () => _showLanguageDialog(),
+      ),
+    );
+  }
+
+  Future<void> _showLanguageDialog() async {
+    final languageProvider = Provider.of<LanguageProvider>(context, listen: false);
+    
+    await showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Select Language'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: LanguageProvider.supportedLanguages.map((lang) {
+            final isSelected = lang['code'] == languageProvider.languageCode;
+            return ListTile(
+              leading: Radio<String>(
+                value: lang['code']!,
+                groupValue: languageProvider.languageCode,
+                onChanged: (value) {
+                  if (value != null) {
+                    languageProvider.setLanguage(value);
+                    Navigator.pop(context);
+                    _showSnackBar('Language changed to ${lang['name']}');
+                  }
+                },
+              ),
+              title: Text(lang['nativeName']!),
+              subtitle: Text(lang['name']!),
+              trailing: isSelected ? const Icon(Icons.check, color: Colors.green) : null,
+              onTap: () {
+                languageProvider.setLanguage(lang['code']!);
+                Navigator.pop(context);
+                _showSnackBar('Language changed to ${lang['name']}');
+              },
+            );
+          }).toList(),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Close'),
+          ),
+        ],
+      ),
+    );
   }
 
 }

@@ -1,7 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../models/app_models.dart';
 import '../../services/api.dart';
+import '../../utils/logger.dart';
+import '../../utils/app_theme.dart';
+import '../../widgets/modern_card.dart';
+import '../../widgets/gradient_header.dart';
+import '../../widgets/status_badge.dart';
+import '../../widgets/empty_state.dart';
 import '../tracking_screen.dart';
+import '../chat_screen.dart';
 
 class UserBookingsScreen extends StatefulWidget {
   const UserBookingsScreen({super.key});
@@ -25,22 +33,22 @@ class _UserBookingsScreenState extends State<UserBookingsScreen> {
   void _setupSocketListeners() async {
     // Initialize socket connection
     Api.initSocket();
-    
+
     // Get user profile to join their room
     try {
       final profileData = await Api.getUserProfile();
       if (profileData != null && profileData['_id'] != null) {
         final userId = profileData['_id'];
         Api.socket?.emit('user:join', {'userId': userId});
-        print('User joined room: user_$userId');
+        AppLogger.info('User joined room: user_$userId');
       }
     } catch (e) {
-      print('Error joining user room: $e');
+      AppLogger.error('Error joining user room', error: e);
     }
-    
+
     // Listen for booking updates (status changes, assignments, etc.)
     Api.socket?.on('booking:updated', (data) {
-      print('Booking updated via socket: $data');
+      AppLogger.debug('Booking updated via socket: $data');
       if (mounted) {
         _loadBookings(); // Reload all bookings when any update occurs
       }
@@ -48,7 +56,7 @@ class _UserBookingsScreenState extends State<UserBookingsScreen> {
 
     // Listen for booking status changes
     Api.socket?.on('booking:status', (data) {
-      print('Booking status changed via socket: $data');
+      AppLogger.debug('Booking status changed via socket: $data');
       if (mounted) {
         _loadBookings();
       }
@@ -56,7 +64,7 @@ class _UserBookingsScreenState extends State<UserBookingsScreen> {
 
     // Listen for technician acceptance
     Api.socket?.on('booking:accepted', (data) {
-      print('Booking accepted via socket: $data');
+      AppLogger.debug('Booking accepted via socket: $data');
       if (mounted) {
         _loadBookings();
       }
@@ -64,7 +72,7 @@ class _UserBookingsScreenState extends State<UserBookingsScreen> {
 
     // Listen for booking completion
     Api.socket?.on('booking:completed', (data) {
-      print('Booking completed via socket: $data');
+      AppLogger.debug('Booking completed via socket: $data');
       if (mounted) {
         _loadBookings();
       }
@@ -85,8 +93,9 @@ class _UserBookingsScreenState extends State<UserBookingsScreen> {
     setState(() => _isLoading = true);
     try {
       final bookingsData = await Api.getUserBookings();
-      print('Bookings data received: ${bookingsData?.length ?? 0} bookings');
-      
+      AppLogger.info(
+          'Bookings data received: ${bookingsData?.length ?? 0} bookings');
+
       if (mounted) {
         setState(() {
           if (bookingsData != null) {
@@ -94,11 +103,12 @@ class _UserBookingsScreenState extends State<UserBookingsScreen> {
             for (var i = 0; i < bookingsData.length; i++) {
               try {
                 final booking = Booking.fromJson(bookingsData[i]);
-                print('Booking ${i + 1}: ${booking.serviceType} - Status: ${booking.status}');
+                AppLogger.debug(
+                    'Booking ${i + 1}: ${booking.serviceType} - Status: ${booking.status}');
                 _bookings!.add(booking);
               } catch (e) {
-                print('Error parsing booking $i: $e');
-                print('Booking data: ${bookingsData[i]}');
+                AppLogger.error('Error parsing booking $i', error: e);
+                AppLogger.debug('Booking data: ${bookingsData[i]}');
               }
             }
           }
@@ -106,8 +116,8 @@ class _UserBookingsScreenState extends State<UserBookingsScreen> {
         });
       }
     } catch (e, stackTrace) {
-      print('Error loading bookings: $e');
-      print('Stack trace: $stackTrace');
+      AppLogger.error('Error loading bookings',
+          error: e, stackTrace: stackTrace);
       if (mounted) {
         setState(() => _isLoading = false);
         ScaffoldMessenger.of(context).showSnackBar(
@@ -121,16 +131,17 @@ class _UserBookingsScreenState extends State<UserBookingsScreen> {
     if (_bookings == null) return [];
     switch (_filter) {
       case 'active':
-        return _bookings!.where((b) =>
-          b.status == 'requested' ||
-          b.status == 'matched' ||
-          b.status == 'accepted' ||
-          b.status == 'in_progress'
-        ).toList();
+        return _bookings!
+            .where((b) =>
+                b.status == 'requested' ||
+                b.status == 'matched' ||
+                b.status == 'accepted' ||
+                b.status == 'in_progress')
+            .toList();
       case 'completed':
-        return _bookings!.where((b) =>
-          b.status == 'completed' || b.status == 'cancelled'
-        ).toList();
+        return _bookings!
+            .where((b) => b.status == 'completed' || b.status == 'cancelled')
+            .toList();
       default:
         return _bookings!;
     }
@@ -139,218 +150,227 @@ class _UserBookingsScreenState extends State<UserBookingsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey[50],
-      appBar: AppBar(
-        title: const Text('My Bookings', style: TextStyle(fontWeight: FontWeight.bold)),
-        backgroundColor: Colors.white,
-        elevation: 1,
-        actions: [
-          PopupMenuButton<String>(
-            onSelected: (value) => setState(() => _filter = value),
-            itemBuilder: (context) => [
-              const PopupMenuItem(value: 'all', child: Text('All Bookings')),
-              const PopupMenuItem(value: 'active', child: Text('Active')),
-              const PopupMenuItem(value: 'completed', child: Text('Completed')),
-            ],
+      body: Column(
+        children: [
+          GradientHeader(
+            title: 'My Bookings',
+            subtitle: 'Track your service requests',
+            icon: Icons.work,
+            action: PopupMenuButton<String>(
+              onSelected: (value) => setState(() => _filter = value),
+              icon: const Icon(Icons.filter_list, color: Colors.white),
+              itemBuilder: (context) => [
+                const PopupMenuItem(value: 'all', child: Text('All Bookings')),
+                const PopupMenuItem(value: 'active', child: Text('Active')),
+                const PopupMenuItem(
+                    value: 'completed', child: Text('Completed')),
+              ],
+            ),
+          ),
+          Expanded(
+            child: _isLoading
+                ? const Center(child: CircularProgressIndicator())
+                : _filteredBookings.isEmpty
+                    ? _buildEmptyState()
+                    : RefreshIndicator(
+                        onRefresh: _loadBookings,
+                        child: ListView.builder(
+                          padding: const EdgeInsets.all(16),
+                          itemCount: _filteredBookings.length,
+                          itemBuilder: (context, index) {
+                            final booking = _filteredBookings[index];
+                            return _buildBookingCard(booking);
+                          },
+                        ),
+                      ),
           ),
         ],
       ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : _filteredBookings.isEmpty
-              ? _buildEmptyState()
-              : RefreshIndicator(
-                  onRefresh: _loadBookings,
-                  child: ListView.builder(
-                    padding: const EdgeInsets.all(16),
-                    itemCount: _filteredBookings.length,
-                    itemBuilder: (context, index) {
-                      final booking = _filteredBookings[index];
-                      return _buildBookingCard(booking);
-                    },
-                  ),
-                ),
-      floatingActionButton: FloatingActionButton(
+      floatingActionButton: FloatingActionButton.extended(
         onPressed: () => Navigator.pushNamed(context, '/request-service'),
-        backgroundColor: Colors.blueAccent,
-        child: const Icon(Icons.add),
+        backgroundColor: AppTheme.primaryBlue,
+        icon: const Icon(Icons.add),
+        label: const Text('New Request'),
       ),
     );
   }
 
   Widget _buildEmptyState() {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-            Icons.work_outline,
-            size: 80,
-            color: Colors.grey[400],
-          ),
-          const SizedBox(height: 16),
-          Text(
-            'No ${_filter == 'all' ? '' : _filter} bookings',
-            style: TextStyle(
-              fontSize: 18,
-              color: Colors.grey[600],
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Your service requests will appear here',
-            style: TextStyle(color: Colors.grey[500]),
-          ),
-          const SizedBox(height: 24),
-          ElevatedButton.icon(
-            onPressed: () => Navigator.pushNamed(context, '/request-service'),
-            icon: const Icon(Icons.add),
-            label: const Text('Request Service'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.blueAccent,
-              foregroundColor: Colors.white,
-            ),
-          ),
-        ],
-      ),
+    return EmptyState(
+      icon: Icons.work_outline,
+      title: 'No ${_filter == 'all' ? '' : _filter} bookings',
+      subtitle: 'Your service requests will appear here',
+      actionText: 'Request Service',
+      onAction: () => Navigator.pushNamed(context, '/request-service'),
     );
   }
 
   Widget _buildBookingCard(Booking booking) {
-    return Container(
+    return ModernCard(
       margin: const EdgeInsets.only(bottom: 12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey[200]!),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 4,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        booking.serviceType.toUpperCase(),
-                        style: const TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        booking.location?['address'] ?? 'No address provided',
-                        style: TextStyle(
-                          color: Colors.grey[600],
-                          fontSize: 14,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ],
-                  ),
-                ),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: booking.getStatusColor().withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: booking.getStatusColor().withValues(alpha: 0.3)),
-                  ),
-                  child: Text(
-                    booking.getStatusDisplay(),
-                    style: TextStyle(
-                      color: booking.getStatusColor(),
-                      fontSize: 12,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Icon(Icons.access_time, size: 16, color: Colors.grey[500]),
-                const SizedBox(width: 4),
-                Text(
-                  '${booking.createdAt.day}/${booking.createdAt.month}/${booking.createdAt.year}',
-                  style: TextStyle(color: Colors.grey[500], fontSize: 12),
-                ),
-                if (booking.etaMinutes != null) ...[
-                  const SizedBox(width: 16),
-                  Icon(Icons.timer, size: 16, color: Colors.orange[500]),
-                  const SizedBox(width: 4),
-                  Text(
-                    '${booking.etaMinutes} min ETA',
-                    style: TextStyle(color: Colors.orange[500], fontSize: 12),
-                  ),
-                ],
-              ],
-            ),
-            if (booking.technician != null) ...[
-              const SizedBox(height: 12),
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.grey[50],
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    CircleAvatar(
-                      radius: 16,
-                      backgroundColor: Colors.blueAccent,
-                      child: Text(
-                        booking.technician!.user!.name.substring(0, 1).toUpperCase(),
-                        style: const TextStyle(color: Colors.white, fontSize: 12),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            booking.technician!.user!.name,
-                            style: const TextStyle(fontWeight: FontWeight.w500),
-                          ),
-                          if (booking.technician!.skills.isNotEmpty)
-                            Text(
-                              booking.technician!.skills.join(', '),
-                              style: TextStyle(color: Colors.grey[600], fontSize: 12),
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              colors: [
+                                _getServiceColor(booking.serviceType)
+                                    .withValues(alpha: 0.2),
+                                _getServiceColor(booking.serviceType)
+                                    .withValues(alpha: 0.1),
+                              ],
                             ),
-                        ],
-                      ),
-                    ),
-                    IconButton(
-                      onPressed: () {},
-                      icon: const Icon(Icons.phone, size: 20),
-                      color: Colors.green,
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Icon(
+                            _getServiceIcon(booking.serviceType),
+                            color: _getServiceColor(booking.serviceType),
+                            size: 20,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                booking.serviceType.toUpperCase(),
+                                style: const TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                booking.location?['address'] ?? 'No address',
+                                style: TextStyle(
+                                  color:
+                                      AppTheme.getSecondaryTextColor(context),
+                                  fontSize: 13,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),
               ),
+              _buildStatusBadge(booking.status),
             ],
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Icon(Icons.access_time, size: 16, color: Colors.grey[500]),
+              const SizedBox(width: 4),
+              Text(
+                '${booking.createdAt.day}/${booking.createdAt.month}/${booking.createdAt.year}',
+                style: TextStyle(color: Colors.grey[500], fontSize: 12),
+              ),
+              if (booking.etaMinutes != null) ...[
+                const SizedBox(width: 16),
+                Icon(Icons.timer, size: 16, color: Colors.orange[500]),
+                const SizedBox(width: 4),
+                Text(
+                  '${booking.etaMinutes} min ETA',
+                  style: TextStyle(color: Colors.orange[500], fontSize: 12),
+                ),
+              ],
+            ],
+          ),
+          if (booking.technician != null) ...[
             const SizedBox(height: 12),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                if (booking.status == 'completed') ...[
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.grey[50],
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Row(
+                children: [
+                  CircleAvatar(
+                    radius: 16,
+                    backgroundColor: Colors.blueAccent,
+                    child: Text(
+                      booking.technician!.user!.name
+                          .substring(0, 1)
+                          .toUpperCase(),
+                      style: const TextStyle(color: Colors.white, fontSize: 12),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          booking.technician!.user!.name,
+                          style: const TextStyle(fontWeight: FontWeight.w500),
+                        ),
+                        if (booking.technician!.skills.isNotEmpty)
+                          Text(
+                            booking.technician!.skills.join(', '),
+                            style: TextStyle(
+                                color: Colors.grey[600], fontSize: 12),
+                          ),
+                      ],
+                    ),
+                  ),
+                  IconButton(
+                    onPressed: () => _callTechnician(booking),
+                    icon: const Icon(Icons.phone, size: 20),
+                    color: Colors.green,
+                  ),
+                ],
+              ),
+            ),
+          ],
+          const SizedBox(height: 12),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              if (booking.status == 'completed') ...[
+                if (booking.hasRating) ...[
+                  // Show rating if already rated
+                  Row(
+                    children: [
+                      ...List.generate(5, (index) {
+                        return Icon(
+                          index < (booking.ratingScore ?? 0)
+                              ? Icons.star
+                              : Icons.star_border,
+                          color: Colors.amber,
+                          size: 20,
+                        );
+                      }),
+                      const SizedBox(width: 8),
+                      Text(
+                        'You rated ${booking.ratingScore} star${(booking.ratingScore ?? 0) > 1 ? 's' : ''}',
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Colors.grey[700],
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
+                ] else ...[
+                  // Show rate button if not yet rated
                   OutlinedButton.icon(
                     onPressed: () => _showRatingDialog(booking),
                     icon: const Icon(Icons.star_outline, size: 16),
@@ -360,31 +380,46 @@ class _UserBookingsScreenState extends State<UserBookingsScreen> {
                       foregroundColor: Colors.orange[500],
                     ),
                   ),
-                ] else if (booking.status == 'in_progress') ...[
-                  OutlinedButton.icon(
-                    onPressed: () {},
-                    icon: const Icon(Icons.message, size: 16),
-                    label: const Text('Chat'),
-                    style: OutlinedButton.styleFrom(
-                      side: BorderSide(color: Colors.blueAccent),
-                      foregroundColor: Colors.blueAccent,
-                    ),
-                  ),
-                ] else if (booking.status == 'accepted' || booking.status == 'matched') ...[
-                  ElevatedButton.icon(
-                    onPressed: () => _openTracking(booking),
-                    icon: const Icon(Icons.navigation, size: 16),
-                    label: const Text('Track'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.green,
-                      foregroundColor: Colors.white,
-                    ),
-                  ),
                 ],
+              ] else if (booking.status == 'in_progress') ...[
+                OutlinedButton.icon(
+                  onPressed: () => _openChat(booking),
+                  icon: const Icon(Icons.message, size: 16),
+                  label: const Text('Chat'),
+                  style: OutlinedButton.styleFrom(
+                    side: BorderSide(color: Colors.blueAccent),
+                    foregroundColor: Colors.blueAccent,
+                  ),
+                ),
+              ] else if (booking.status == 'accepted' ||
+                  booking.status == 'matched') ...[
+                ElevatedButton.icon(
+                  onPressed: () => _openTracking(booking),
+                  icon: const Icon(Icons.navigation, size: 16),
+                  label: const Text('Track'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.green,
+                    foregroundColor: Colors.white,
+                  ),
+                ),
+              ],
+            ],
+          ),
+          if (booking.totalCost != null) ...[
+            const SizedBox(height: 12),
+            const Divider(),
+            const SizedBox(height: 8),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  'Total Cost:',
+                  style: TextStyle(fontSize: 14, color: Colors.grey),
+                ),
                 Text(
                   '\$${booking.totalCost?.toStringAsFixed(2) ?? 'TBD'}',
                   style: const TextStyle(
-                    fontSize: 16,
+                    fontSize: 18,
                     fontWeight: FontWeight.bold,
                     color: Colors.green,
                   ),
@@ -392,7 +427,7 @@ class _UserBookingsScreenState extends State<UserBookingsScreen> {
               ],
             ),
           ],
-        ),
+        ],
       ),
     );
   }
@@ -408,9 +443,10 @@ class _UserBookingsScreenState extends State<UserBookingsScreen> {
     // Handle both coordinate formats: [lng, lat] array or lat/lng fields
     double userLat = 0;
     double userLng = 0;
-    
+
     if (booking.location != null) {
-      if (booking.location!.containsKey('coordinates') && booking.location!['coordinates'] is List) {
+      if (booking.location!.containsKey('coordinates') &&
+          booking.location!['coordinates'] is List) {
         userLng = booking.location!['coordinates'][0].toDouble();
         userLat = booking.location!['coordinates'][1].toDouble();
       } else {
@@ -434,46 +470,195 @@ class _UserBookingsScreenState extends State<UserBookingsScreen> {
     );
   }
 
+  void _callTechnician(Booking booking) async {
+    if (booking.technician?.user?.phone == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Phone number not available')),
+      );
+      return;
+    }
+
+    final phoneNumber = booking.technician!.user!.phone!;
+    final uri = Uri.parse('tel:$phoneNumber');
+
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri);
+    } else {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not launch phone dialer')),
+        );
+      }
+    }
+  }
+
+  void _openChat(Booking booking) {
+    if (booking.technician == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No technician assigned yet')),
+      );
+      return;
+    }
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => ChatScreen(
+          bookingId: booking.id,
+          otherPartyName: booking.technician!.user!.name,
+          serviceType: booking.serviceType,
+        ),
+      ),
+    );
+  }
+
   void _showRatingDialog(Booking booking) {
+    int selectedRating = 0;
+    final reviewController = TextEditingController();
+
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Rate Service'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text('How was your experience with ${booking.technician?.user?.name}?'),
-            const SizedBox(height: 16),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: List.generate(5, (index) {
-                return IconButton(
-                  onPressed: () {},
-                  icon: Icon(
-                    index < 4 ? Icons.star : Icons.star_border,
-                    color: Colors.orange,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) => AlertDialog(
+          title: const Text('Rate Service'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                    'How was your experience with ${booking.technician?.user?.name}?'),
+                const SizedBox(height: 16),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: List.generate(5, (index) {
+                    return IconButton(
+                      onPressed: () {
+                        setState(() {
+                          selectedRating = index + 1;
+                        });
+                      },
+                      icon: Icon(
+                        index < selectedRating ? Icons.star : Icons.star_border,
+                        color: Colors.orange,
+                        size: 32,
+                      ),
+                    );
+                  }),
+                ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: reviewController,
+                  decoration: const InputDecoration(
+                    hintText: 'Write a review (optional)',
+                    border: OutlineInputBorder(),
                   ),
-                );
-              }),
+                  maxLines: 3,
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: selectedRating > 0
+                  ? () async {
+                      final navigator = Navigator.of(context);
+                      final messenger = ScaffoldMessenger.of(context);
+                      navigator.pop();
+                      final result = await Api.rateBooking(
+                        bookingId: booking.id,
+                        score: selectedRating,
+                        review: reviewController.text.trim(),
+                      );
+                      if (mounted) {
+                        if (result != null) {
+                          messenger.showSnackBar(
+                            const SnackBar(
+                                content: Text('Thank you for your rating!')),
+                          );
+                          _loadBookings();
+                        } else {
+                          messenger.showSnackBar(
+                            const SnackBar(
+                                content: Text('Failed to submit rating')),
+                          );
+                        }
+                      }
+                    }
+                  : null,
+              child: const Text('Submit'),
             ),
           ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Thank you for your rating!')),
-              );
-            },
-            child: const Text('Submit'),
-          ),
-        ],
       ),
     );
+  }
+
+  Widget _buildStatusBadge(String status) {
+    switch (status.toLowerCase()) {
+      case 'completed':
+        return StatusBadge.success('COMPLETED');
+      case 'in_progress':
+        return StatusBadge.info('IN PROGRESS');
+      case 'accepted':
+        return StatusBadge.info('ACCEPTED');
+      case 'matched':
+        return StatusBadge.warning('MATCHED');
+      case 'requested':
+        return StatusBadge.warning('REQUESTED');
+      case 'cancelled':
+        return StatusBadge.error('CANCELLED');
+      default:
+        return StatusBadge.info(status.toUpperCase());
+    }
+  }
+
+  Color _getServiceColor(String serviceType) {
+    switch (serviceType.toLowerCase()) {
+      case 'plumbing':
+        return Colors.blue;
+      case 'electrical':
+        return Colors.orange;
+      case 'carpentry':
+        return Colors.brown;
+      case 'painting':
+        return Colors.purple;
+      case 'cleaning':
+        return Colors.green;
+      case 'hvac':
+        return Colors.cyan;
+      case 'handyman':
+        return Colors.grey;
+      case 'emergency':
+        return Colors.red;
+      default:
+        return AppTheme.primaryBlue;
+    }
+  }
+
+  IconData _getServiceIcon(String serviceType) {
+    switch (serviceType.toLowerCase()) {
+      case 'plumbing':
+        return Icons.plumbing;
+      case 'electrical':
+        return Icons.electrical_services;
+      case 'carpentry':
+        return Icons.carpenter;
+      case 'painting':
+        return Icons.format_paint;
+      case 'cleaning':
+        return Icons.cleaning_services;
+      case 'hvac':
+        return Icons.ac_unit;
+      case 'handyman':
+        return Icons.handyman;
+      case 'emergency':
+        return Icons.emergency;
+      default:
+        return Icons.build;
+    }
   }
 }

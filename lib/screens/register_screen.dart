@@ -3,6 +3,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:geocoding/geocoding.dart';
 import '../services/api.dart';
+import '../utils/app_theme.dart';
+import '../widgets/modern_card.dart';
 import 'login_screen.dart';
 
 class RegisterScreen extends StatefulWidget {
@@ -211,37 +213,74 @@ Future<void> _registerWithApple() async {
       }
     }
   } catch (e) {
-  _showSnackBar("Apple sign-up failed: $e");
-}
-
-
+    _showSnackBar("Apple sign-up failed: $e");
+  }
 }
 
 void _showSnackBar(String msg) {
-ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
 }
 
 @override
 Widget build(BuildContext context) {
 return Scaffold(
-backgroundColor: Colors.blue[50],
-body: Center(
+body: Container(
+decoration: BoxDecoration(
+gradient: LinearGradient(
+begin: Alignment.topLeft,
+end: Alignment.bottomRight,
+colors: [
+AppTheme.primaryBlue.withValues(alpha: 0.1),
+AppTheme.accentPurple.withValues(alpha: 0.1),
+],
+),
+),
+child: SafeArea(
+child: Center(
 child: SingleChildScrollView(
 padding: const EdgeInsets.all(24),
+child: ConstrainedBox(
+constraints: const BoxConstraints(maxWidth: 500),
 child: Column(
 mainAxisAlignment: MainAxisAlignment.center,
 children: [
-const Icon(Icons.app_registration,
-size: 80, color: Colors.blueAccent),
-const SizedBox(height: 20),
-const Text(
-"Create QuickFix Account",
-style: TextStyle(
-fontSize: 24,
-fontWeight: FontWeight.bold,
-color: Colors.blueAccent),
+// Logo
+Container(
+padding: const EdgeInsets.all(20),
+decoration: BoxDecoration(
+shape: BoxShape.circle,
+gradient: AppTheme.primaryGradient,
+boxShadow: [
+BoxShadow(
+color: AppTheme.primaryBlue.withValues(alpha: 0.3),
+blurRadius: 20,
+offset: const Offset(0, 10),
 ),
-const SizedBox(height: 30),
+],
+),
+child: const Icon(Icons.app_registration, size: 50, color: Colors.white),
+),
+const SizedBox(height: 24),
+const Text(
+"Create Account",
+style: TextStyle(
+fontSize: 28,
+fontWeight: FontWeight.bold,
+),
+),
+const SizedBox(height: 8),
+Text(
+"Join QuickFix today",
+style: TextStyle(
+fontSize: 16,
+color: AppTheme.getSecondaryTextColor(context),
+),
+),
+const SizedBox(height: 32),
+// Registration Form
+ModernCard(
+child: Column(
+children: [
 
           // Full Name
           TextField(
@@ -347,57 +386,58 @@ const SizedBox(height: 30),
                   child: const Text("Register",
                       style: TextStyle(fontSize: 16, color: Colors.white)),
                 ),
-          const SizedBox(height: 20),
-
-          // Divider
-          Row(children: const [
-            Expanded(child: Divider(thickness: 1)),
-            Padding(
-              padding: EdgeInsets.symmetric(horizontal: 10),
-              child: Text("or sign up with",
-                  style: TextStyle(color: Colors.grey)),
+                ],
+              ),
             ),
-            Expanded(child: Divider(thickness: 1)),
-          ]),
-          const SizedBox(height: 15),
-
-          // Social signups
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              _socialButton(Icons.account_circle, Colors.blue, _registerWithGoogle),
-              const SizedBox(width: 15),
-              _socialButton(Icons.facebook, Colors.blue.shade800, _registerWithFacebook),
-              const SizedBox(width: 15),
-              _socialButton(Icons.apple, Colors.black, _registerWithApple),
-            ],
-          ),
-          const SizedBox(height: 25),
-
-          TextButton(
-            onPressed: () {
-              Navigator.pushReplacement(context,
-                  MaterialPageRoute(builder: (_) => const LoginScreen()));
-            },
-            child: const Text("Already have an account? Login"),
-          ),
-        ],
+            const SizedBox(height: 20),
+            // Divider
+            Row(children: const [
+              Expanded(child: Divider(thickness: 1)),
+              Padding(
+                padding: EdgeInsets.symmetric(horizontal: 10),
+                child: Text("or sign up with",
+                    style: TextStyle(color: Colors.grey)),
+              ),
+              Expanded(child: Divider(thickness: 1)),
+            ]),
+            const SizedBox(height: 15),
+            // Social signups
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                _socialButton(Icons.account_circle, Colors.blue, _registerWithGoogle),
+                const SizedBox(width: 15),
+                _socialButton(Icons.facebook, Colors.blue.shade800, _registerWithFacebook),
+                const SizedBox(width: 15),
+                _socialButton(Icons.apple, Colors.black, _registerWithApple),
+              ],
+            ),
+            const SizedBox(height: 25),
+            TextButton(
+              onPressed: () {
+                Navigator.pushReplacement(context,
+                    MaterialPageRoute(builder: (_) => const LoginScreen()));
+              },
+              child: const Text("Already have an account? Login"),
+            ),
+          ],
+        ),
       ),
     ),
   ),
-);
-
-
+  ),
+  ),
+  );
 }
 
 Widget _socialButton(IconData icon, Color color, Function() onTap) {
-return InkWell(
-onTap: onTap,
-child: CircleAvatar(
-radius: 25,
-backgroundColor: color,
-child: Icon(icon, size: 30, color: Colors.white),
-),
-);
+  return InkWell(
+    onTap: onTap,
+    child: CircleAvatar(
+      radius: 25,
+      backgroundColor: color,
+      child: Icon(icon, size: 30, color: Colors.white),
+    ),
+  );
 }
 }

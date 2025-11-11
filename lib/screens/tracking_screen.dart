@@ -2,7 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart';
 import '../services/api.dart';
+import '../utils/logger.dart';
 import 'dart:async';
+import 'dart:convert';
+import 'dart:math' as math;
+import 'package:http/http.dart' as http;
+import 'package:flutter_polyline_points/flutter_polyline_points.dart';
 
 class BookingTrackingScreen extends StatefulWidget {
   final String bookingId;
@@ -39,9 +44,14 @@ class _BookingTrackingScreenState extends State<BookingTrackingScreen> {
   double? _distanceInKm;
   int? _etaInMinutes;
   String _bookingStatus = 'pending';
+  String? _durationText;
+  String? _distanceText;
   
   Timer? _locationUpdateTimer;
-  bool _mapError = false; 
+  bool _mapError = false;
+  bool _isLoadingRoute = false;
+  
+  static const String _googleMapsApiKey = 'AIzaSyAqvX383VlzdiaF8-U-4e6NYRpl6uUgMAg'; 
 
 
   @override
@@ -104,23 +114,23 @@ class _BookingTrackingScreenState extends State<BookingTrackingScreen> {
     }
   }
 
-  void _updateMarkers() {
+  Future<void> _updateMarkers() async {
     _markers.clear();
 
-    // User location marker
+    // User location marker (destination)
     _markers.add(
       Marker(
         markerId: const MarkerId('user'),
         position: _userLocation,
-        icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueBlue),
+        icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed),
         infoWindow: InfoWindow(
-          title: 'Your Location',
+          title: 'Destination',
           snippet: widget.userAddress,
         ),
       ),
     );
 
-    // Technician location marker
+    // Technician location marker (moving)
     if (_technicianLocation != null) {
       _markers.add(
         Marker(
@@ -129,25 +139,108 @@ class _BookingTrackingScreenState extends State<BookingTrackingScreen> {
           icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen),
           infoWindow: InfoWindow(
             title: widget.technicianName,
-            snippet: 'Technician',
+            snippet: 'On the way',
           ),
+          rotation: _calculateBearing(_technicianLocation!, _userLocation),
         ),
       );
     }
   }
+  
+  double _calculateBearing(LatLng start, LatLng end) {
+    final lat1 = start.latitude * math.pi / 180;
+    final lat2 = end.latitude * math.pi / 180;
+    final dLng = (end.longitude - start.longitude) * math.pi / 180;
+    
+    final y = math.sin(dLng) * math.cos(lat2);
+    final x = math.cos(lat1) * math.sin(lat2) -
+        math.sin(lat1) * math.cos(lat2) * math.cos(dLng);
+    
+    final bearing = math.atan2(y, x) * 180 / math.pi;
+    return (bearing + 360) % 360;
+  }
 
-  void _updateRoute() {
+  Future<void> _updateRoute() async {
     if (_technicianLocation == null) return;
 
-    _polylines.clear();
+    setState(() => _isLoadingRoute = true);
     
-    // Create a simple straight line route (in production, use Google Directions API)
+    try {
+      // Fetch route from Google Directions API
+      final origin = '${_technicianLocation!.latitude},${_technicianLocation!.longitude}';
+      final destination = '${_userLocation.latitude},${_userLocation.longitude}';
+      
+      final url = Uri.parse(
+        'https://maps.googleapis.com/maps/api/directions/json?'
+        'origin=$origin&'
+        'destination=$destination&'
+        'mode=driving&'
+        'key=$_googleMapsApiKey'
+      );
+
+      final response = await http.get(url);
+      
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        
+        if (data['status'] == 'OK' && data['routes'].isNotEmpty) {
+          final route = data['routes'][0];
+          final polylinePoints = route['overview_polyline']['points'];
+          
+          // Decode polyline
+          final points = PolylinePoints().decodePolyline(polylinePoints);
+          final polylineCoordinates = points
+              .map((point) => LatLng(point.latitude, point.longitude))
+              .toList();
+
+          // Get distance and duration from route
+          final leg = route['legs'][0];
+          _distanceText = leg['distance']['text'];
+          _durationText = leg['duration']['text'];
+          
+          // Extract numeric values
+          final distanceValue = leg['distance']['value'] / 1000.0; // Convert to km
+          final durationValue = leg['duration']['value'] / 60; // Convert to minutes
+          
+          setState(() {
+            _distanceInKm = distanceValue;
+            _etaInMinutes = durationValue.round();
+            
+            _polylines.clear();
+            _polylines.add(
+              Polyline(
+                polylineId: const PolylineId('route'),
+                points: polylineCoordinates,
+                color: const Color(0xFF4285F4), // Google Maps blue
+                width: 5,
+                geodesic: true,
+                startCap: Cap.roundCap,
+                endCap: Cap.roundCap,
+                jointType: JointType.round,
+              ),
+            );
+          });
+        }
+      }
+    } catch (e) {
+      AppLogger.error('Error fetching route', error: e);
+      // Fallback to straight line
+      _createStraightLineRoute();
+    } finally {
+      setState(() => _isLoadingRoute = false);
+    }
+  }
+  
+  void _createStraightLineRoute() {
+    if (_technicianLocation == null) return;
+    
+    _polylines.clear();
     _polylines.add(
       Polyline(
         polylineId: const PolylineId('route'),
         points: [_technicianLocation!, _userLocation],
-        color: Colors.blueAccent,
-        width: 4,
+        color: const Color(0xFF4285F4),
+        width: 5,
         patterns: [PatternItem.dash(20), PatternItem.gap(10)],
       ),
     );
@@ -227,7 +320,7 @@ class _BookingTrackingScreenState extends State<BookingTrackingScreen> {
                         _mapController = controller;
                       }
                     } catch (e) {
-                      print('Error creating map: $e');
+                      AppLogger.error('Error creating map', error: e);
                       if (mounted) {
                         setState(() => _mapError = true);
                       }
@@ -236,10 +329,49 @@ class _BookingTrackingScreenState extends State<BookingTrackingScreen> {
                   markers: _markers,
                   polylines: _polylines,
                   myLocationEnabled: true,
-                  myLocationButtonEnabled: true,
+                  myLocationButtonEnabled: false,
                   zoomControlsEnabled: false,
                   mapToolbarEnabled: false,
+                  compassEnabled: true,
+                  trafficEnabled: true,
+                  buildingsEnabled: true,
+                  mapType: MapType.normal,
                 ),
+          
+          // Loading indicator for route
+          if (_isLoadingRoute)
+            Positioned(
+              top: 100,
+              left: 0,
+              right: 0,
+              child: Center(
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(20),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.1),
+                        blurRadius: 8,
+                      ),
+                    ],
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      ),
+                      const SizedBox(width: 8),
+                      const Text('Calculating route...'),
+                    ],
+                  ),
+                ),
+              ),
+            ),
           
           // Top info card
           Positioned(
@@ -428,6 +560,75 @@ class _BookingTrackingScreenState extends State<BookingTrackingScreen> {
                 ],
               ),
               const SizedBox(height: 16),
+              
+              // Route info (Distance & ETA)
+              if (_technicianLocation != null && _distanceInKm != null && _etaInMinutes != null)
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [Color(0xFF4285F4), Color(0xFF34A853)],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceAround,
+                    children: [
+                      Column(
+                        children: [
+                          Icon(Icons.straighten, color: Colors.white, size: 24),
+                          const SizedBox(height: 4),
+                          Text(
+                            _distanceText ?? '${_distanceInKm!.toStringAsFixed(1)} km',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const Text(
+                            'Distance',
+                            style: TextStyle(
+                              color: Colors.white70,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ],
+                      ),
+                      Container(
+                        height: 40,
+                        width: 1,
+                        color: Colors.white30,
+                      ),
+                      Column(
+                        children: [
+                          Icon(Icons.access_time, color: Colors.white, size: 24),
+                          const SizedBox(height: 4),
+                          Text(
+                            _durationText ?? '$_etaInMinutes min',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const Text(
+                            'ETA',
+                            style: TextStyle(
+                              color: Colors.white70,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              
+              if (_technicianLocation != null && _distanceInKm != null && _etaInMinutes != null)
+                const SizedBox(height: 16),
               
               // Destination
               Container(

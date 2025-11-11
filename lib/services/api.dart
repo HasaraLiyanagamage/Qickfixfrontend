@@ -431,6 +431,19 @@ class Api {
     return null;
   }
 
+  static Future<Map?> deleteUser(String userId) async {
+    try {
+      final r = await http.delete(
+        Uri.parse('$base/api/admin/users/$userId'),
+        headers: {'Authorization': 'Bearer $token'},
+      );
+      if (r.statusCode == 200) return jsonDecode(r.body);
+    } catch (e) {
+      if (kDebugMode) print('Delete user error: $e');
+    }
+    return null;
+  }
+
   static Future<Map?> getSystemStats() async {
     try {
       final r = await http.get(
@@ -522,6 +535,83 @@ class Api {
       if (r.statusCode == 200) return jsonDecode(r.body);
     } catch (e) {
       if (kDebugMode) print('Get technician jobs error: $e');
+    }
+    return null;
+  }
+
+  // Rate a booking
+  static Future<Map?> rateBooking({
+    required String bookingId,
+    required int score,
+    String? review,
+  }) async {
+    try {
+      final r = await http.post(
+        Uri.parse('$base/api/booking/$bookingId/rate'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode({
+          'score': score,
+          'review': review,
+        }),
+      );
+      if (r.statusCode == 200) return jsonDecode(r.body);
+    } catch (e) {
+      if (kDebugMode) print('Rate booking error: $e');
+    }
+    return null;
+  }
+
+  // Get messages for a booking
+  static Future<List<dynamic>?> getMessages(String bookingId) async {
+    try {
+      final r = await http.get(
+        Uri.parse('$base/api/message/booking/$bookingId'),
+        headers: {'Authorization': 'Bearer $token'},
+      );
+      if (r.statusCode == 200) return jsonDecode(r.body);
+    } catch (e) {
+      if (kDebugMode) print('Get messages error: $e');
+    }
+    return null;
+  }
+
+  // Send a message
+  static Future<Map?> sendMessage({
+    required String bookingId,
+    required String message,
+  }) async {
+    try {
+      final r = await http.post(
+        Uri.parse('$base/api/message/send'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode({
+          'bookingId': bookingId,
+          'message': message,
+        }),
+      );
+      if (r.statusCode == 200) return jsonDecode(r.body);
+    } catch (e) {
+      if (kDebugMode) print('Send message error: $e');
+    }
+    return null;
+  }
+
+  // Mark messages as read
+  static Future<Map?> markMessagesRead(String bookingId) async {
+    try {
+      final r = await http.patch(
+        Uri.parse('$base/api/message/read/$bookingId'),
+        headers: {'Authorization': 'Bearer $token'},
+      );
+      if (r.statusCode == 200) return jsonDecode(r.body);
+    } catch (e) {
+      if (kDebugMode) print('Mark messages read error: $e');
     }
     return null;
   }

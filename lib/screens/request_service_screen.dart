@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:geocoding/geocoding.dart';
 import 'package:geolocator/geolocator.dart';
+import '../utils/app_theme.dart';
+import '../widgets/modern_card.dart';
+import '../widgets/gradient_header.dart';
 import 'user/select_technician_screen.dart';
 
 class RequestServiceScreen extends StatefulWidget {
@@ -150,35 +153,27 @@ class _RequestServiceScreenState extends State<RequestServiceScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey[50],
-      appBar: AppBar(
-        title: const Text('Request Service', style: TextStyle(fontWeight: FontWeight.bold)),
-        backgroundColor: Colors.white,
-        elevation: 1,
-      ),
-      body: SingleChildScrollView(
-        child: Padding(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Header
-              const Text(
-                'What service do you need?',
-                style: TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Select a service and enter your location',
-                style: TextStyle(
-                  fontSize: 14,
-                  color: Colors.grey[600],
-                ),
-              ),
-              const SizedBox(height: 24),
+      body: Column(
+        children: [
+          GradientHeader(
+            title: 'Request Service',
+            subtitle: 'Choose a service and enter your location',
+            icon: Icons.build_circle,
+          ),
+          Expanded(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'What service do you need?',
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
 
               // Service Selection Grid
               GridView.builder(
@@ -195,49 +190,47 @@ class _RequestServiceScreenState extends State<RequestServiceScreen> {
                   final service = _services[index];
                   final isSelected = _selectedService == service['name'];
                   
-                  return InkWell(
+                  return ModernCard(
                     onTap: () {
                       setState(() {
                         _selectedService = service['name'];
                       });
                     },
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: isSelected ? service['color'] : Colors.white,
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(
-                          color: isSelected ? service['color'] : Colors.grey[300]!,
-                          width: 2,
-                        ),
-                        boxShadow: isSelected
-                            ? [
-                                BoxShadow(
-                                  color: (service['color'] as Color).withValues(alpha: 0.3),
-                                  blurRadius: 8,
-                                  offset: const Offset(0, 4),
-                                ),
-                              ]
-                            : [],
-                      ),
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(
-                            service['icon'],
-                            size: 40,
-                            color: isSelected ? Colors.white : service['color'],
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            service['name'],
-                            style: TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.bold,
-                              color: isSelected ? Colors.white : Colors.black87,
+                    gradient: isSelected
+                        ? LinearGradient(
+                            colors: [
+                              service['color'] as Color,
+                              (service['color'] as Color).withValues(alpha: 0.8),
+                            ],
+                          )
+                        : null,
+                    boxShadow: isSelected
+                        ? [
+                            BoxShadow(
+                              color: (service['color'] as Color).withValues(alpha: 0.3),
+                              blurRadius: 12,
+                              offset: const Offset(0, 6),
                             ),
+                          ]
+                        : null,
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          service['icon'],
+                          size: 40,
+                          color: isSelected ? Colors.white : service['color'],
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          service['name'],
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                            color: isSelected ? Colors.white : Colors.black87,
                           ),
-                        ],
-                      ),
+                        ),
+                      ],
                     ),
                   );
                 },
@@ -300,18 +293,28 @@ class _RequestServiceScreenState extends State<RequestServiceScreen> {
               const SizedBox(height: 32),
 
               // Continue Button
-              SizedBox(
+              Container(
                 width: double.infinity,
+                decoration: BoxDecoration(
+                  gradient: AppTheme.primaryGradient,
+                  borderRadius: BorderRadius.circular(12),
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppTheme.primaryBlue.withValues(alpha: 0.3),
+                      blurRadius: 12,
+                      offset: const Offset(0, 6),
+                    ),
+                  ],
+                ),
                 child: ElevatedButton(
                   onPressed: _isGeocodingAddress ? null : _proceedToTechnicians,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.blueAccent,
-                    foregroundColor: Colors.white,
+                    backgroundColor: Colors.transparent,
+                    shadowColor: Colors.transparent,
                     padding: const EdgeInsets.symmetric(vertical: 16),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    elevation: 2,
                   ),
                   child: _isGeocodingAddress
                       ? const SizedBox(
@@ -327,6 +330,7 @@ class _RequestServiceScreenState extends State<RequestServiceScreen> {
                           style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.bold,
+                            color: Colors.white,
                           ),
                         ),
                 ),
@@ -335,32 +339,30 @@ class _RequestServiceScreenState extends State<RequestServiceScreen> {
               const SizedBox(height: 16),
 
               // Info Card
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.blue[50],
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.blue[100]!),
-                ),
+              ModernCard(
+                color: AppTheme.info.withValues(alpha: 0.1),
                 child: Row(
                   children: [
-                    Icon(Icons.info_outline, color: Colors.blue[700], size: 24),
+                    Icon(Icons.info_outline, color: AppTheme.info, size: 24),
                     const SizedBox(width: 12),
                     Expanded(
                       child: Text(
                         'We\'ll show you available technicians near your location',
                         style: TextStyle(
                           fontSize: 13,
-                          color: Colors.blue[900],
+                          color: AppTheme.info,
+                          fontWeight: FontWeight.w500,
                         ),
                       ),
                     ),
                   ],
                 ),
               ),
-            ],
+                ],
+              ),
+            ),
           ),
-        ),
+        ],
       ),
     );
   }

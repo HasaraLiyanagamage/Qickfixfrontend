@@ -175,6 +175,9 @@ class Booking {
   final int? etaMinutes;
   final double? totalCost;
   final String? notes;
+  final int? ratingScore;
+  final String? ratingReview;
+  final DateTime? ratedAt;
 
   Booking({
     required this.id,
@@ -190,6 +193,9 @@ class Booking {
     this.etaMinutes,
     this.totalCost,
     this.notes,
+    this.ratingScore,
+    this.ratingReview,
+    this.ratedAt,
   });
 
   factory Booking.fromJson(Map<String, dynamic> json) {
@@ -237,6 +243,23 @@ class Booking {
       createdAt = DateTime.now();
     }
 
+    // Parse rating if exists
+    int? ratingScore;
+    String? ratingReview;
+    DateTime? ratedAt;
+    if (json['rating'] != null && json['rating'] is Map) {
+      final rating = json['rating'] as Map<String, dynamic>;
+      ratingScore = rating['score']?.toInt();
+      ratingReview = rating['review'];
+      if (rating['ratedAt'] != null) {
+        try {
+          ratedAt = DateTime.parse(rating['ratedAt']);
+        } catch (e) {
+          ratedAt = null;
+        }
+      }
+    }
+
     return Booking(
       id: json['_id'] ?? json['id'] ?? '',
       userId: userId,
@@ -251,6 +274,9 @@ class Booking {
       etaMinutes: json['etaMinutes']?.toInt(),
       totalCost: (json['totalCost'] ?? json['priceEstimate'])?.toDouble(),
       notes: json['notes'],
+      ratingScore: ratingScore,
+      ratingReview: ratingReview,
+      ratedAt: ratedAt,
     );
   }
 
@@ -306,12 +332,17 @@ class Booking {
     }
   }
 
+  bool get hasRating => ratingScore != null;
+
   Booking copyWith({
     String? status,
     int? etaMinutes,
     double? totalCost,
     String? notes,
     Technician? technician,
+    int? ratingScore,
+    String? ratingReview,
+    DateTime? ratedAt,
   }) {
     return Booking(
       id: id,
@@ -327,6 +358,9 @@ class Booking {
       etaMinutes: etaMinutes ?? this.etaMinutes,
       totalCost: totalCost ?? this.totalCost,
       notes: notes ?? this.notes,
+      ratingScore: ratingScore ?? this.ratingScore,
+      ratingReview: ratingReview ?? this.ratingReview,
+      ratedAt: ratedAt ?? this.ratedAt,
     );
   }
 }

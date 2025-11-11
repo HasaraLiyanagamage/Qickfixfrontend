@@ -441,6 +441,8 @@ class _TechnicianSettingsScreenState extends State<TechnicianSettingsScreen> {
     bool notifyNewServices = prefs.getBool('notifyNewServices') ?? true;
     bool autoAcceptBookings = prefs.getBool('autoAcceptBookings') ?? false;
 
+    if (!mounted) return;
+    
     await showDialog(
       context: context,
       builder: (context) => StatefulBuilder(

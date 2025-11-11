@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../models/app_models.dart';
 import '../../services/api.dart';
+import '../../utils/logger.dart';
+import '../chat_screen.dart';
 
 class TechJobsScreen extends StatefulWidget {
   const TechJobsScreen({super.key});
@@ -31,15 +34,15 @@ class _TechJobsScreenState extends State<TechJobsScreen> {
       if (profileData != null && profileData['_id'] != null) {
         final techId = profileData['_id'];
         Api.socket?.emit('technician:join', {'technicianId': techId});
-        print('Technician joined room: tech_$techId');
+        AppLogger.info('Technician joined room: tech_$techId');
       }
     } catch (e) {
-      print('Error joining technician room: $e');
+      AppLogger.error('Error joining technician room', error: e);
     }
     
     // Listen for booking updates
     Api.socket?.on('booking:updated', (data) {
-      print('Booking updated via socket: $data');
+      AppLogger.debug('Booking updated via socket: $data');
       if (mounted) {
         _loadJobs();
       }
@@ -47,7 +50,7 @@ class _TechJobsScreenState extends State<TechJobsScreen> {
 
     // Listen for booking status changes
     Api.socket?.on('booking:status', (data) {
-      print('Booking status changed via socket: $data');
+      AppLogger.debug('Booking status changed via socket: $data');
       if (mounted) {
         _loadJobs();
       }
@@ -55,7 +58,7 @@ class _TechJobsScreenState extends State<TechJobsScreen> {
 
     // Listen for booking assignments
     Api.socket?.on('booking:assigned', (data) {
-      print('New booking assigned via socket: $data');
+      AppLogger.debug('New booking assigned via socket: $data');
       if (mounted) {
         _loadJobs();
       }
@@ -75,7 +78,7 @@ class _TechJobsScreenState extends State<TechJobsScreen> {
     setState(() => _isLoading = true);
     try {
       final jobsData = await Api.getTechnicianJobs();
-      print('Jobs data received: ${jobsData?.length ?? 0} jobs');
+      AppLogger.info('Jobs data received: ${jobsData?.length ?? 0} jobs');
       
       if (mounted) {
         setState(() {
@@ -84,11 +87,11 @@ class _TechJobsScreenState extends State<TechJobsScreen> {
             for (var i = 0; i < jobsData.length; i++) {
               try {
                 final job = Booking.fromJson(jobsData[i]);
-                print('Job ${i + 1}: ${job.serviceType} - Status: ${job.status}');
+                AppLogger.debug('Job ${i + 1}: ${job.serviceType} - Status: ${job.status}');
                 _allJobs!.add(job);
               } catch (e) {
-                print('Error parsing job $i: $e');
-                print('Job data: ${jobsData[i]}');
+                AppLogger.error('Error parsing job $i', error: e);
+                AppLogger.debug('Job data: ${jobsData[i]}');
               }
             }
           }
@@ -96,7 +99,7 @@ class _TechJobsScreenState extends State<TechJobsScreen> {
         });
       }
     } catch (e) {
-      print('Error loading jobs: $e');
+      AppLogger.error('Error loading jobs', error: e);
       if (mounted) {
         setState(() => _isLoading = false);
         ScaffoldMessenger.of(context).showSnackBar(
@@ -167,7 +170,7 @@ class _TechJobsScreenState extends State<TechJobsScreen> {
         }
       }
     } catch (e) {
-      print('Error updating job status: $e');
+      AppLogger.error('Error updating job status', error: e);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Error updating job status: $e')),
@@ -381,7 +384,7 @@ class _TechJobsScreenState extends State<TechJobsScreen> {
                       ),
                     ),
                     IconButton(
-                      onPressed: () {},
+                      onPressed: () => _callCustomer(job),
                       icon: const Icon(Icons.phone, size: 20),
                       color: Colors.green,
                     ),
@@ -438,7 +441,7 @@ class _TechJobsScreenState extends State<TechJobsScreen> {
         return Row(
           children: [
             OutlinedButton.icon(
-              onPressed: () {},
+              onPressed: () => _navigateToCustomer(job),
               icon: const Icon(Icons.navigation, size: 16),
               label: const Text('Navigate'),
               style: OutlinedButton.styleFrom(
@@ -462,7 +465,7 @@ class _TechJobsScreenState extends State<TechJobsScreen> {
         return Row(
           children: [
             OutlinedButton.icon(
-              onPressed: () {},
+              onPressed: () => _openChat(job),
               icon: const Icon(Icons.message, size: 16),
               label: const Text('Chat'),
               style: OutlinedButton.styleFrom(
@@ -495,5 +498,75 @@ class _TechJobsScreenState extends State<TechJobsScreen> {
       default:
         return const SizedBox.shrink();
     }
+  }
+
+  void _callCustomer(Booking job) async {
+    if (job.user?.phone == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Phone number not available')),
+      );
+      return;
+    }
+
+    final phoneNumber = job.user!.phone!;
+    final uri = Uri.parse('tel:$phoneNumber');
+    
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri);
+    } else {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not launch phone dialer')),
+        );
+      }
+    }
+  }
+
+  void _navigateToCustomer(Booking job) async {
+    if (job.location == null || job.location!['lat'] == null || job.location!['lng'] == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Location not available')),
+      );
+      return;
+    }
+
+    final lat = job.location!['lat'];
+    final lng = job.location!['lng'];
+    
+    // Try Google Maps first, then Apple Maps
+    final googleMapsUrl = Uri.parse('https://www.google.com/maps/dir/?api=1&destination=$lat,$lng');
+    final appleMapsUrl = Uri.parse('https://maps.apple.com/?daddr=$lat,$lng&dirflg=d');
+    
+    if (await canLaunchUrl(googleMapsUrl)) {
+      await launchUrl(googleMapsUrl, mode: LaunchMode.externalApplication);
+    } else if (await canLaunchUrl(appleMapsUrl)) {
+      await launchUrl(appleMapsUrl, mode: LaunchMode.externalApplication);
+    } else {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not open maps application')),
+        );
+      }
+    }
+  }
+
+  void _openChat(Booking job) {
+    if (job.user == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Customer information not available')),
+      );
+      return;
+    }
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => ChatScreen(
+          bookingId: job.id,
+          otherPartyName: job.user!.name,
+          serviceType: job.serviceType,
+        ),
+      ),
+    );
   }
 }

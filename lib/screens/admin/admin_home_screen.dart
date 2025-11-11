@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import '../../services/api.dart';
 import '../../models/app_models.dart';
+import '../../utils/app_theme.dart';
+import '../../widgets/modern_card.dart';
+import '../../widgets/gradient_header.dart';
 import '../login_screen.dart';
 import 'admin_chatbot_screen.dart';
 import 'admin_users_screen.dart';
@@ -104,58 +107,63 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey[50],
-      appBar: AppBar(
-        title: const Text(
-          "Admin Dashboard",
-          style: TextStyle(fontWeight: FontWeight.bold),
-        ),
-        backgroundColor: Colors.white,
-        elevation: 0,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.person),
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const AdminProfileScreen()),
-              );
-            },
-            tooltip: 'My Profile',
+      body: Column(
+        children: [
+          GradientHeader(
+            title: 'Admin Dashboard',
+            subtitle: 'Manage your QuickFix platform',
+            icon: Icons.dashboard,
+            gradientColors: [AppTheme.accentPurple, AppTheme.accentPurple.withValues(alpha: 0.7)],
+            action: Row(
+              children: [
+                IconButton(
+                  icon: const Icon(Icons.person, color: Colors.white),
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const AdminProfileScreen()),
+                    );
+                  },
+                  tooltip: 'My Profile',
+                ),
+                IconButton(
+                  icon: const Icon(Icons.chat_bubble_outline, color: Colors.white),
+                  onPressed: () => _openChatbot(context),
+                  tooltip: 'Chat Assistant',
+                ),
+                IconButton(
+                  icon: const Icon(Icons.logout, color: Colors.white),
+                  onPressed: () => _logout(context),
+                  tooltip: 'Logout',
+                ),
+              ],
+            ),
           ),
-          IconButton(
-            icon: const Icon(Icons.chat_bubble_outline),
-            onPressed: () => _openChatbot(context),
-            tooltip: 'Chat with QuickFix Assistant',
+          Expanded(
+            child: RefreshIndicator(
+              onRefresh: _loadStats,
+              child: SingleChildScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _buildStatsSection(),
+                    const SizedBox(height: 24),
+                    _buildQuickActions(),
+                    const SizedBox(height: 24),
+                    _buildManagementSection(),
+                    const SizedBox(height: 24),
+                  ],
+                ),
+              ),
+            ),
           ),
-          IconButton(
-            icon: const Icon(Icons.logout),
-            onPressed: () => _logout(context),
-          )
         ],
-      ),
-      body: RefreshIndicator(
-        onRefresh: _loadStats,
-        child: SingleChildScrollView(
-          physics: const AlwaysScrollableScrollPhysics(),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _buildWelcomeSection(),
-              const SizedBox(height: 24),
-              _buildStatsSection(),
-              const SizedBox(height: 24),
-              _buildQuickActions(),
-              const SizedBox(height: 24),
-              _buildManagementSection(),
-              const SizedBox(height: 24),
-            ],
-          ),
-        ),
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _openChatbot(context),
-        backgroundColor: Colors.deepPurple,
+        backgroundColor: AppTheme.accentPurple,
         icon: const Icon(Icons.chat, color: Colors.white),
         label: const Text(
           'AI Assistant',
@@ -166,7 +174,7 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
         currentIndex: _selectedIndex,
         onTap: _onNavItemTapped,
         type: BottomNavigationBarType.fixed,
-        selectedItemColor: Colors.deepPurple,
+        selectedItemColor: AppTheme.accentPurple,
         unselectedItemColor: Colors.grey,
         items: const [
           BottomNavigationBarItem(
@@ -184,41 +192,6 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
           BottomNavigationBarItem(
             icon: Icon(Icons.settings),
             label: 'Settings',
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildWelcomeSection() {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [Colors.deepPurple.shade400, Colors.deepPurple.shade700],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'Admin Dashboard',
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 28,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Manage your QuickFix platform',
-            style: TextStyle(
-              color: Colors.white.withValues(alpha: 0.9),
-              fontSize: 16,
-            ),
           ),
         ],
       ),
@@ -335,45 +308,31 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
     required String value,
     required Color color,
   }) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey[200]!),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 4,
-            offset: const Offset(0, 2),
-          ),
-        ],
+    return ModernCard(
+      gradient: LinearGradient(
+        colors: [color, color.withValues(alpha: 0.8)],
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
       ),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Icon(icon, color: color, size: 28),
-          ),
+          Icon(icon, color: Colors.white, size: 32),
           const SizedBox(height: 12),
           Text(
             value,
             style: const TextStyle(
-              fontSize: 24,
+              color: Colors.white,
+              fontSize: 28,
               fontWeight: FontWeight.bold,
             ),
           ),
           const SizedBox(height: 4),
           Text(
             label,
-            textAlign: TextAlign.center,
             style: TextStyle(
+              color: Colors.white.withValues(alpha: 0.9),
               fontSize: 12,
-              color: Colors.grey[600],
             ),
           ),
         ],
@@ -387,31 +346,15 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
     required String value,
     required Color color,
   }) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey[200]!),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 4,
-            offset: const Offset(0, 2),
-          ),
-        ],
+    return ModernCard(
+      gradient: LinearGradient(
+        colors: [color, color.withValues(alpha: 0.8)],
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
       ),
       child: Row(
         children: [
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Icon(icon, color: color, size: 32),
-          ),
+          Icon(icon, color: Colors.white, size: 40),
           const SizedBox(width: 16),
           Expanded(
             child: Column(
@@ -421,15 +364,16 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
                   label,
                   style: TextStyle(
                     fontSize: 14,
-                    color: Colors.grey[600],
+                    color: Colors.white.withValues(alpha: 0.9),
                   ),
                 ),
                 const SizedBox(height: 4),
                 Text(
                   value,
                   style: const TextStyle(
-                    fontSize: 28,
+                    fontSize: 32,
                     fontWeight: FontWeight.bold,
+                    color: Colors.white,
                   ),
                 ),
               ],
@@ -441,19 +385,17 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
   }
 
   Widget _buildQuickActions() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'Quick Actions',
-            style: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-            ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Quick Actions',
+          style: TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.bold,
           ),
-          const SizedBox(height: 12),
+        ),
+        const SizedBox(height: 12),
           Row(
             children: [
               Expanded(
@@ -476,7 +418,6 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
             ],
           ),
         ],
-      ),
     );
   }
 
@@ -486,54 +427,42 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
     required Color color,
     required VoidCallback onTap,
   }) {
-    return InkWell(
+    return ModernCard(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(12),
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Colors.grey[200]!),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.05),
-              blurRadius: 4,
-              offset: const Offset(0, 2),
-            ),
-          ],
-        ),
-        child: Column(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: color.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(8),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  color.withValues(alpha: 0.2),
+                  color.withValues(alpha: 0.1),
+                ],
               ),
-              child: Icon(icon, color: color, size: 28),
+              borderRadius: BorderRadius.circular(12),
             ),
-            const SizedBox(height: 8),
-            Text(
-              label,
-              textAlign: TextAlign.center,
-              style: const TextStyle(
-                fontWeight: FontWeight.w600,
-                fontSize: 14,
-              ),
+            child: Icon(icon, color: color, size: 32),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            label,
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              fontWeight: FontWeight.w600,
+              fontSize: 14,
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
 
   Widget _buildManagementSection() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
           const Text(
             'Management',
             style: TextStyle(
@@ -566,7 +495,6 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
             onTap: () => _openChatbot(context),
           ),
         ],
-      ),
     );
   }
 
@@ -577,59 +505,53 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
     required Color color,
     required VoidCallback onTap,
   }) {
-    return InkWell(
+    return ModernCard(
+      margin: const EdgeInsets.only(bottom: 12),
       onTap: onTap,
-      borderRadius: BorderRadius.circular(12),
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Colors.grey[200]!),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.05),
-              blurRadius: 4,
-              offset: const Offset(0, 2),
-            ),
-          ],
-        ),
-        child: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: color.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Icon(icon, color: color, size: 28),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 16,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    subtitle,
-                    style: TextStyle(
-                      color: Colors.grey[600],
-                      fontSize: 12,
-                    ),
-                  ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  color.withValues(alpha: 0.2),
+                  color.withValues(alpha: 0.1),
                 ],
               ),
+              borderRadius: BorderRadius.circular(12),
             ),
-            Icon(Icons.arrow_forward_ios, size: 16, color: Colors.grey[400]),
-          ],
-        ),
+            child: Icon(icon, color: color, size: 28),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  subtitle,
+                  style: TextStyle(
+                    color: AppTheme.getSecondaryTextColor(context),
+                    fontSize: 13,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Icon(
+            Icons.arrow_forward_ios,
+            size: 16,
+            color: AppTheme.getSecondaryTextColor(context),
+          ),
+        ],
       ),
     );
   }

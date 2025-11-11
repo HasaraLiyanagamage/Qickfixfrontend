@@ -1,10 +1,16 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:provider/provider.dart';
 import 'screens/login_screen.dart';
 import 'screens/user/user_home_screen.dart';
 import 'screens/technician/tech_home_screen.dart';
 import 'screens/admin/admin_home_screen.dart';
 import 'services/api.dart';
+import 'providers/theme_provider.dart';
+import 'providers/language_provider.dart';
+import 'l10n/app_localizations.dart';
+import 'utils/app_theme.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -20,7 +26,15 @@ void main() async {
     ),
   );
 
-  runApp(const QuickFixApp());
+  runApp(
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => ThemeProvider()),
+        ChangeNotifierProvider(create: (_) => LanguageProvider()),
+      ],
+      child: const QuickFixApp(),
+    ),
+  );
 }
 
 class QuickFixApp extends StatefulWidget {
@@ -65,16 +79,30 @@ class _QuickFixAppState extends State<QuickFixApp> {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'QuickFix App',
-      theme: ThemeData(primarySwatch: Colors.blue),
-      debugShowCheckedModeBanner: false,
-      home: _defaultScreen,
-      routes: {
-        '/login': (context) => const LoginScreen(),
-        '/userHome': (context) => const UserHomeScreen(),
-        '/technicianHome': (context) => const TechnicianHomeScreen(),
-        '/adminHome': (context) => const AdminHomeScreen(),
+    return Consumer2<ThemeProvider, LanguageProvider>(
+      builder: (context, themeProvider, languageProvider, child) {
+        return MaterialApp(
+          title: 'QuickFix App',
+          theme: AppTheme.lightTheme,
+          darkTheme: AppTheme.darkTheme,
+          themeMode: themeProvider.themeMode,
+          debugShowCheckedModeBanner: false,
+          locale: languageProvider.locale,
+          supportedLocales: LanguageProvider.supportedLocales,
+          localizationsDelegates: const [
+            AppLocalizations.delegate,
+            GlobalMaterialLocalizations.delegate,
+            GlobalWidgetsLocalizations.delegate,
+            GlobalCupertinoLocalizations.delegate,
+          ],
+          home: _defaultScreen,
+          routes: {
+            '/login': (context) => const LoginScreen(),
+            '/userHome': (context) => const UserHomeScreen(),
+            '/technicianHome': (context) => const TechnicianHomeScreen(),
+            '/adminHome': (context) => const AdminHomeScreen(),
+          },
+        );
       },
     );
   }
