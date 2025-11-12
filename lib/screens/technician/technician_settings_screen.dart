@@ -4,6 +4,8 @@ import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'dart:io';
 import '../../services/api.dart';
+import '../../utils/app_theme.dart';
+import '../../widgets/gradient_header.dart';
 import '../login_screen.dart';
 
 class TechnicianSettingsScreen extends StatefulWidget {
@@ -83,15 +85,18 @@ class _TechnicianSettingsScreenState extends State<TechnicianSettingsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey[50],
-      appBar: AppBar(
-        title: const Text('Settings', style: TextStyle(fontWeight: FontWeight.bold)),
-        backgroundColor: Colors.white,
-        elevation: 0,
-      ),
-      body: ListView(
-        padding: const EdgeInsets.all(16),
+      body: Column(
         children: [
+          GradientHeader(
+            title: 'Settings',
+            subtitle: 'Manage your preferences',
+            icon: Icons.settings,
+            gradientColors: [AppTheme.accentOrange, AppTheme.accentOrange.withValues(alpha: 0.7)],
+          ),
+          Expanded(
+            child: ListView(
+              padding: const EdgeInsets.all(16),
+              children: [
           // Two-Factor Authentication
           _buildActionTile(
             'Two-Factor Authentication',
@@ -242,6 +247,9 @@ class _TechnicianSettingsScreenState extends State<TechnicianSettingsScreen> {
             ),
           ),
           const SizedBox(height: 24),
+              ],
+            ),
+          ),
         ],
       ),
     );

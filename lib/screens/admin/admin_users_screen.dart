@@ -196,6 +196,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> with SingleTickerPr
         icon: Icons.people_outline,
         title: 'No users found',
         subtitle: 'Users will appear here once they register',
+        message: 'Users will appear here once they register',
       );
     }
 
@@ -222,6 +223,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> with SingleTickerPr
         icon: Icons.engineering_outlined,
         title: 'No technicians found',
         subtitle: 'Technicians will appear here once they register',
+        message: 'Technicians will appear here once they register',
       );
     }
 

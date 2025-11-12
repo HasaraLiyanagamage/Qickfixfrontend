@@ -1,11 +1,16 @@
 import 'package:flutter/material.dart';
 import '../../services/api.dart';
 import '../../models/app_models.dart';
+import '../../widgets/modern_card.dart';
+import '../../widgets/status_badge.dart';
+import '../../widgets/empty_state.dart';
 import '../login_screen.dart';
 import 'tech_chatbot_screen.dart';
 import 'tech_jobs_screen.dart';
 import 'tech_profile_screen.dart';
 import 'technician_settings_screen.dart';
+import 'tech_notifications_screen.dart';
+import 'tech_feedback_screen.dart';
 
 class TechnicianHomeScreen extends StatefulWidget {
   const TechnicianHomeScreen({super.key});
@@ -20,27 +25,73 @@ class _TechnicianHomeScreenState extends State<TechnicianHomeScreen> {
   bool _isAvailable = true;
   Map<String, dynamic>? _profile;
   int _selectedIndex = 0;
+  int _unreadNotificationCount = 0;
 
   @override
   void initState() {
     super.initState();
     _loadData();
+    _loadUnreadNotificationCount();
+  }
+
+  Future<void> _loadUnreadNotificationCount() async {
+    try {
+      final count = await Api.getUnreadNotificationCount();
+      if (mounted) {
+        setState(() {
+          _unreadNotificationCount = count;
+        });
+      }
+    } catch (e) {
+      // Handle error silently - endpoint may not exist yet
+      // Badge will show 0 notifications
+      if (mounted) {
+        setState(() {
+          _unreadNotificationCount = 0;
+        });
+      }
+    }
+  }
+
+  String _getGreeting() {
+    final hour = DateTime.now().hour;
+    if (hour < 12) {
+      return 'Good Morning';
+    } else if (hour < 17) {
+      return 'Good Afternoon';
+    } else {
+      return 'Good Evening';
+    }
   }
 
   Future<void> _loadData() async {
     setState(() => _isLoading = true);
     try {
       final profileData = await Api.getTechnicianProfile();
-      final jobsData = await Api.getUserBookings();
+      final jobsData = await Api.getTechnicianJobs();
       
       if (mounted) {
         setState(() {
           _profile = profileData != null ? Map<String, dynamic>.from(profileData) : null;
           _isAvailable = profileData?['isAvailable'] ?? true;
-          _recentJobs = jobsData
-              ?.map((b) => Booking.fromJson(b))
-              .take(3)
-              .toList();
+          
+          // Parse all jobs
+          final allJobs = jobsData?.map((b) => Booking.fromJson(b)).toList() ?? [];
+          
+          // Get recent jobs (last 3)
+          _recentJobs = allJobs.take(3).toList();
+          
+          // Update profile with calculated stats if not present
+          if (_profile != null) {
+            _profile!['totalJobs'] = _profile!['totalJobs'] ?? allJobs.length;
+            _profile!['activeJobs'] = allJobs.where((j) => 
+              j.status == 'accepted' || j.status == 'in_progress' || j.status == 'matched'
+            ).length;
+            _profile!['completedJobs'] = allJobs.where((j) => 
+              j.status == 'completed'
+            ).length;
+          }
+          
           _isLoading = false;
         });
       }
@@ -121,10 +172,16 @@ class _TechnicianHomeScreenState extends State<TechnicianHomeScreen> {
       case 2:
         Navigator.push(
           context,
-          MaterialPageRoute(builder: (_) => const TechChatbotScreen()),
+          MaterialPageRoute(builder: (_) => const TechFeedbackScreen()),
         );
         break;
       case 3:
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const TechChatbotScreen()),
+        );
+        break;
+      case 4:
         Navigator.push(
           context,
           MaterialPageRoute(builder: (_) => const TechnicianSettingsScreen()),
@@ -135,16 +192,60 @@ class _TechnicianHomeScreenState extends State<TechnicianHomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    
     return Scaffold(
-      backgroundColor: Colors.grey[50],
+      backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
         title: const Text(
           "Technician Dashboard",
           style: TextStyle(fontWeight: FontWeight.bold),
         ),
-        backgroundColor: Colors.white,
+        backgroundColor: theme.primaryColor,
         elevation: 0,
         actions: [
+          // Notifications icon with badge
+          IconButton(
+            icon: Stack(
+              children: [
+                const Icon(Icons.notifications_outlined),
+                if (_unreadNotificationCount > 0)
+                  Positioned(
+                    right: 0,
+                    top: 0,
+                    child: Container(
+                      padding: const EdgeInsets.all(4),
+                      decoration: const BoxDecoration(
+                        color: Colors.red,
+                        shape: BoxShape.circle,
+                      ),
+                      constraints: const BoxConstraints(
+                        minWidth: 16,
+                        minHeight: 16,
+                      ),
+                      child: Text(
+                        _unreadNotificationCount > 9 ? '9+' : _unreadNotificationCount.toString(),
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+            onPressed: () async {
+              await Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const TechNotificationsScreen()),
+              );
+              // Reload notification count after returning
+              _loadUnreadNotificationCount();
+            },
+            tooltip: 'Notifications',
+          ),
           IconButton(
             icon: const Icon(Icons.chat_bubble_outline),
             onPressed: () => _openChatbot(context),
@@ -163,6 +264,8 @@ class _TechnicianHomeScreenState extends State<TechnicianHomeScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              _buildGreetingCard(),
+              const SizedBox(height: 16),
               _buildStatusCard(),
               const SizedBox(height: 16),
               _buildStatsSection(),
@@ -200,12 +303,71 @@ class _TechnicianHomeScreenState extends State<TechnicianHomeScreen> {
             label: 'Jobs',
           ),
           BottomNavigationBarItem(
+            icon: Icon(Icons.star),
+            label: 'Feedback',
+          ),
+          BottomNavigationBarItem(
             icon: Icon(Icons.chat_bubble_outline),
             label: 'Chat',
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.settings),
             label: 'Settings',
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildGreetingCard() {
+    final userName = _profile?['name'] ?? '';
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [Colors.orangeAccent, Colors.deepOrange],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.2),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: const Icon(
+              Icons.waving_hand,
+              color: Colors.white,
+              size: 28,
+            ),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  userName.isNotEmpty ? '${_getGreeting()}, $userName!' : 'Welcome!',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Ready to help customers today?',
+                  style: TextStyle(
+                    color: Colors.white.withValues(alpha: 0.9),
+                    fontSize: 14,
+                  ),
+                ),
+              ],
+            ),
           ),
         ],
       ),
@@ -279,10 +441,8 @@ class _TechnicianHomeScreenState extends State<TechnicianHomeScreen> {
 
   Widget _buildStatsSection() {
     final totalJobs = _profile?['totalJobs'] ?? 0;
-    final rating = _profile?['rating'] ?? 0;
-    final activeJobs = _recentJobs?.where((j) => 
-      j.status == 'accepted' || j.status == 'in_progress'
-    ).length ?? 0;
+    final rating = _profile?['rating'] ?? 0.0;
+    final activeJobs = _profile?['activeJobs'] ?? 0;
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -301,7 +461,7 @@ class _TechnicianHomeScreenState extends State<TechnicianHomeScreen> {
             child: _buildStatCard(
               icon: Icons.star,
               label: 'Rating',
-              value: rating > 0 ? rating.toString() : 'N/A',
+              value: rating > 0 ? rating.toStringAsFixed(1) : '0.0',
               color: Colors.amber,
             ),
           ),
@@ -482,36 +642,15 @@ class _TechnicianHomeScreenState extends State<TechnicianHomeScreen> {
               ),
             )
           else if (_recentJobs == null || _recentJobs!.isEmpty)
-            Container(
-              padding: const EdgeInsets.all(24),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.grey[200]!),
-              ),
-              child: Center(
-                child: Column(
-                  children: [
-                    Icon(Icons.work_outline, size: 48, color: Colors.grey[400]),
-                    const SizedBox(height: 12),
-                    Text(
-                      'No jobs yet',
-                      style: TextStyle(
-                        color: Colors.grey[600],
-                        fontSize: 16,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      _isAvailable 
-                          ? 'Jobs will appear here when customers request services'
-                          : 'Turn on availability to receive jobs',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(color: Colors.grey[500], fontSize: 14),
-                    ),
-                  ],
-                ),
-              ),
+            EmptyState(
+              icon: Icons.work_outline,
+              title: 'No jobs yet',
+              subtitle: _isAvailable 
+                  ? 'Jobs will appear here when customers request services'
+                  : 'Turn on availability to receive jobs',
+              message: _isAvailable 
+                  ? 'Jobs will appear here when customers request services'
+                  : 'Turn on availability to receive jobs',
             )
           else
             Column(
@@ -525,21 +664,8 @@ class _TechnicianHomeScreenState extends State<TechnicianHomeScreen> {
   }
 
   Widget _buildJobCard(Booking job) {
-    return Container(
+    return ModernCard(
       margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey[200]!),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 4,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -582,21 +708,7 @@ class _TechnicianHomeScreenState extends State<TechnicianHomeScreen> {
                   ],
                 ),
               ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: job.getStatusColor().withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Text(
-                  job.getStatusDisplay(),
-                  style: TextStyle(
-                    color: job.getStatusColor(),
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
+              _buildStatusBadge(job.status),
             ],
           ),
           if (job.user != null) ...[
@@ -622,5 +734,23 @@ class _TechnicianHomeScreenState extends State<TechnicianHomeScreen> {
         ],
       ),
     );
+  }
+
+  Widget _buildStatusBadge(String status) {
+    switch (status.toLowerCase()) {
+      case 'pending':
+        return StatusBadge.warning('PENDING');
+      case 'accepted':
+      case 'matched':
+        return StatusBadge.info('ACTIVE');
+      case 'in_progress':
+        return StatusBadge.info('IN PROGRESS');
+      case 'completed':
+        return StatusBadge.success('COMPLETED');
+      case 'cancelled':
+        return StatusBadge.error('CANCELLED');
+      default:
+        return StatusBadge.info(status.toUpperCase());
+    }
   }
 }

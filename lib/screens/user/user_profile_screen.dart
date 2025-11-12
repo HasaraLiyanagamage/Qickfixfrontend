@@ -1,6 +1,11 @@
 import 'package:flutter/material.dart';
 import '../../services/api.dart';
 import '../../models/app_models.dart';
+import '../../utils/app_theme.dart';
+import '../../widgets/modern_card.dart';
+import '../../widgets/gradient_header.dart';
+import '../../widgets/status_badge.dart';
+import '../login_screen.dart';
 
 class UserProfileScreen extends StatefulWidget {
   const UserProfileScreen({super.key});
@@ -112,54 +117,56 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey[50],
-      appBar: AppBar(
-        title: const Text(
-          'My Profile',
-          style: TextStyle(fontWeight: FontWeight.bold),
-        ),
-        backgroundColor: Colors.white,
-        elevation: 0,
-        actions: [
-          if (!_isLoading && _user != null)
-            IconButton(
-              icon: Icon(_isEditing ? Icons.close : Icons.edit),
-              onPressed: _toggleEdit,
-              tooltip: _isEditing ? 'Cancel' : 'Edit Profile',
-            ),
+      body: Column(
+        children: [
+          GradientHeader(
+            title: 'My Profile',
+            subtitle: 'Manage your account',
+            icon: Icons.person,
+            action: !_isLoading && _user != null
+                ? IconButton(
+                    icon: Icon(_isEditing ? Icons.close : Icons.edit, color: Colors.white),
+                    onPressed: _toggleEdit,
+                    tooltip: _isEditing ? 'Cancel' : 'Edit Profile',
+                  )
+                : null,
+          ),
+          Expanded(
+            child: _isLoading
+                ? const Center(child: CircularProgressIndicator())
+                : _user == null
+                    ? Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.error_outline, size: 64, color: Colors.grey[400]),
+                            const SizedBox(height: 16),
+                            Text(
+                              'Unable to load profile',
+                              style: TextStyle(color: Colors.grey[600], fontSize: 16),
+                            ),
+                            const SizedBox(height: 16),
+                            ElevatedButton(
+                              onPressed: _loadProfile,
+                              child: const Text('Retry'),
+                            ),
+                          ],
+                        ),
+                      )
+                    : SingleChildScrollView(
+                        padding: const EdgeInsets.all(16),
+                        child: Column(
+                          children: [
+                            _buildProfileHeader(),
+                            const SizedBox(height: 24),
+                            _buildProfileForm(),
+                            const SizedBox(height: 24),
+                          ],
+                        ),
+                      ),
+          ),
         ],
       ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : _user == null
-              ? Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.error_outline, size: 64, color: Colors.grey[400]),
-                      const SizedBox(height: 16),
-                      Text(
-                        'Unable to load profile',
-                        style: TextStyle(color: Colors.grey[600], fontSize: 16),
-                      ),
-                      const SizedBox(height: 16),
-                      ElevatedButton(
-                        onPressed: _loadProfile,
-                        child: const Text('Retry'),
-                      ),
-                    ],
-                  ),
-                )
-              : SingleChildScrollView(
-                  child: Column(
-                    children: [
-                      _buildProfileHeader(),
-                      const SizedBox(height: 24),
-                      _buildProfileForm(),
-                      const SizedBox(height: 24),
-                    ],
-                  ),
-                ),
       bottomNavigationBar: _isEditing
           ? Container(
               padding: const EdgeInsets.all(16),
@@ -205,16 +212,8 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
   }
 
   Widget _buildProfileHeader() {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [Colors.blueAccent, Colors.blue.shade700],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-      ),
+    return ModernCard(
+      gradient: AppTheme.primaryGradient,
       child: Column(
         children: [
           CircleAvatar(
@@ -222,10 +221,10 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
             backgroundColor: Colors.white,
             child: Text(
               _user!.name.isNotEmpty ? _user!.name[0].toUpperCase() : 'U',
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 40,
                 fontWeight: FontWeight.bold,
-                color: Colors.blueAccent,
+                color: AppTheme.primaryBlue,
               ),
             ),
           ),
@@ -246,30 +245,15 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
               fontSize: 14,
             ),
           ),
-          const SizedBox(height: 8),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.2),
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: const Text(
-              'User',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 12,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-          ),
+          const SizedBox(height: 12),
+          StatusBadge.success('ACTIVE'),
         ],
       ),
     );
   }
 
   Widget _buildProfileForm() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
+    return ModernCard(
       child: Form(
         key: _formKey,
         child: Column(
@@ -319,10 +303,250 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
               enabled: _isEditing,
               maxLines: 3,
             ),
+            const SizedBox(height: 32),
+            // Account Management Section
+            const Text(
+              'Account Management',
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 16),
+            _buildActionButton(
+              label: 'Change Password',
+              icon: Icons.lock_outline,
+              color: Colors.blueAccent,
+              onPressed: _showChangePasswordDialog,
+            ),
+            const SizedBox(height: 12),
+            _buildActionButton(
+              label: 'Delete Account',
+              icon: Icons.delete_outline,
+              color: Colors.red,
+              onPressed: _showDeleteAccountDialog,
+            ),
           ],
         ),
       ),
     );
+  }
+
+  Widget _buildActionButton({
+    required String label,
+    required IconData icon,
+    required Color color,
+    required VoidCallback onPressed,
+  }) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: color.withValues(alpha: 0.3)),
+      ),
+      child: ListTile(
+        leading: Icon(icon, color: color),
+        title: Text(
+          label,
+          style: TextStyle(
+            color: color,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        trailing: Icon(Icons.chevron_right, color: color),
+        onTap: onPressed,
+      ),
+    );
+  }
+
+  Future<void> _showChangePasswordDialog() async {
+    final currentPasswordController = TextEditingController();
+    final newPasswordController = TextEditingController();
+    final confirmPasswordController = TextEditingController();
+    final formKey = GlobalKey<FormState>();
+
+    await showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Change Password'),
+        content: Form(
+          key: formKey,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextFormField(
+                controller: currentPasswordController,
+                obscureText: true,
+                decoration: const InputDecoration(
+                  labelText: 'Current Password',
+                  prefixIcon: Icon(Icons.lock),
+                ),
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return 'Please enter current password';
+                  }
+                  return null;
+                },
+              ),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: newPasswordController,
+                obscureText: true,
+                decoration: const InputDecoration(
+                  labelText: 'New Password',
+                  prefixIcon: Icon(Icons.lock_outline),
+                ),
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return 'Please enter new password';
+                  }
+                  if (value.length < 6) {
+                    return 'Password must be at least 6 characters';
+                  }
+                  return null;
+                },
+              ),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: confirmPasswordController,
+                obscureText: true,
+                decoration: const InputDecoration(
+                  labelText: 'Confirm New Password',
+                  prefixIcon: Icon(Icons.lock_outline),
+                ),
+                validator: (value) {
+                  if (value != newPasswordController.text) {
+                    return 'Passwords do not match';
+                  }
+                  return null;
+                },
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              if (formKey.currentState!.validate()) {
+                Navigator.pop(context);
+                await _changePassword(
+                  currentPasswordController.text,
+                  newPasswordController.text,
+                );
+              }
+            },
+            child: const Text('Change Password'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _changePassword(String currentPassword, String newPassword) async {
+    try {
+      await Api.changePassword(
+        currentPassword: currentPassword,
+        newPassword: newPassword,
+      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Password changed successfully'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(e.toString().replaceAll('Exception: ', '')),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _showDeleteAccountDialog() async {
+    final passwordController = TextEditingController();
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete Account'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Are you sure you want to delete your account? This action cannot be undone.',
+              style: TextStyle(color: Colors.red),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: passwordController,
+              obscureText: true,
+              decoration: const InputDecoration(
+                labelText: 'Enter your password to confirm',
+                prefixIcon: Icon(Icons.lock),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              if (passwordController.text.isNotEmpty) {
+                Navigator.pop(context, true);
+              }
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            child: const Text('Delete Account'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true && passwordController.text.isNotEmpty) {
+      await _deleteAccount(passwordController.text);
+    }
+  }
+
+  Future<void> _deleteAccount(String password) async {
+    try {
+      await Api.deleteAccount(password);
+      if (mounted) {
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(builder: (_) => const LoginScreen()),
+          (route) => false,
+        );
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Account deleted successfully'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(e.toString().replaceAll('Exception: ', '')),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
   Widget _buildTextField({

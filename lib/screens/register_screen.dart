@@ -349,7 +349,7 @@ children: [
             items: const [
               DropdownMenuItem(value: 'user', child: Text('User')),
               DropdownMenuItem(value: 'technician', child: Text('Technician')),
-              DropdownMenuItem(value: 'admin', child: Text('Admin')),
+              //DropdownMenuItem(value: 'admin', child: Text('Admin')),
             ],
             onChanged: (value) {
               setState(() {

@@ -322,6 +322,26 @@ class Api {
     return null;
   }
 
+  // Get technician feedbacks/ratings
+  static Future<List?> getTechnicianFeedbacks() async {
+    try {
+      final r = await http.get(
+        Uri.parse('$base/api/technician/feedbacks'),
+        headers: {'Authorization': 'Bearer $token'},
+      );
+      if (kDebugMode) print('Feedbacks API response status: ${r.statusCode}');
+      if (kDebugMode) print('Feedbacks API response body: ${r.body}');
+      if (r.statusCode == 200) {
+        final data = jsonDecode(r.body);
+        if (kDebugMode) print('Feedbacks API decoded data: $data');
+        return data['feedbacks'] ?? data;
+      }
+    } catch (e) {
+      if (kDebugMode) print('Get technician feedbacks error: $e');
+    }
+    return null;
+  }
+
   // User Profile APIs
   static Future<Map?> getUserProfile() async {
     try {
@@ -612,6 +632,167 @@ class Api {
       if (r.statusCode == 200) return jsonDecode(r.body);
     } catch (e) {
       if (kDebugMode) print('Mark messages read error: $e');
+    }
+    return null;
+  }
+
+  // ========== NOTIFICATION METHODS ==========
+  
+  // Get user notifications
+  static Future<List?> getUserNotifications() async {
+    try {
+      final r = await http.get(
+        Uri.parse('$base/api/notifications'),
+        headers: {'Authorization': 'Bearer $token'},
+      );
+      if (r.statusCode == 200) {
+        final data = jsonDecode(r.body);
+        return data['notifications'] ?? [];
+      }
+    } catch (e) {
+      if (kDebugMode) print('Get notifications error: $e');
+    }
+    return null;
+  }
+
+  // Get technician notifications
+  static Future<List?> getTechnicianNotifications() async {
+    try {
+      if (kDebugMode) print('Fetching technician notifications from: $base/api/notifications/technician');
+      final r = await http.get(
+        Uri.parse('$base/api/notifications/technician'),
+        headers: {'Authorization': 'Bearer $token'},
+      );
+      if (kDebugMode) print('Technician notifications response status: ${r.statusCode}');
+      if (kDebugMode) print('Technician notifications response body: ${r.body}');
+      if (r.statusCode == 200) {
+        final data = jsonDecode(r.body);
+        if (kDebugMode) print('Technician notifications data: $data');
+        return data['notifications'] ?? [];
+      }
+    } catch (e) {
+      if (kDebugMode) print('Get technician notifications error: $e');
+    }
+    return null;
+  }
+
+  // Mark notification as read
+  static Future<Map?> markNotificationAsRead(String notificationId) async {
+    try {
+      final r = await http.patch(
+        Uri.parse('$base/api/notifications/$notificationId/read'),
+        headers: {'Authorization': 'Bearer $token'},
+      );
+      if (r.statusCode == 200) return jsonDecode(r.body);
+    } catch (e) {
+      if (kDebugMode) print('Mark notification as read error: $e');
+    }
+    return null;
+  }
+
+  // Mark all notifications as read
+  static Future<Map?> markAllNotificationsAsRead() async {
+    try {
+      final r = await http.patch(
+        Uri.parse('$base/api/notifications/read-all'),
+        headers: {'Authorization': 'Bearer $token'},
+      );
+      if (r.statusCode == 200) return jsonDecode(r.body);
+    } catch (e) {
+      if (kDebugMode) print('Mark all notifications as read error: $e');
+    }
+    return null;
+  }
+
+  // Delete notification
+  static Future<Map?> deleteNotification(String notificationId) async {
+    try {
+      final r = await http.delete(
+        Uri.parse('$base/api/notifications/$notificationId'),
+        headers: {'Authorization': 'Bearer $token'},
+      );
+      if (r.statusCode == 200) return jsonDecode(r.body);
+    } catch (e) {
+      if (kDebugMode) print('Delete notification error: $e');
+    }
+    return null;
+  }
+
+  // Get unread notification count
+  static Future<int> getUnreadNotificationCount() async {
+    try {
+      final r = await http.get(
+        Uri.parse('$base/api/notifications/unread/count'),
+        headers: {'Authorization': 'Bearer $token'},
+      );
+      if (r.statusCode == 200) {
+        final data = jsonDecode(r.body);
+        return data['count'] ?? 0;
+      }
+    } catch (e) {
+      if (kDebugMode) print('Get unread count error: $e');
+    }
+    return 0;
+  }
+
+  // ========== ACCOUNT MANAGEMENT METHODS ==========
+
+  // Change password
+  static Future<Map?> changePassword({
+    required String currentPassword,
+    required String newPassword,
+  }) async {
+    try {
+      final r = await http.patch(
+        Uri.parse('$base/api/auth/change-password'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode({
+          'currentPassword': currentPassword,
+          'newPassword': newPassword,
+        }),
+      );
+      if (r.statusCode == 200) return jsonDecode(r.body);
+      if (r.statusCode == 400 || r.statusCode == 401) {
+        final error = jsonDecode(r.body);
+        throw Exception(error['message'] ?? 'Invalid current password');
+      }
+    } catch (e) {
+      if (kDebugMode) print('Change password error: $e');
+      rethrow;
+    }
+    return null;
+  }
+
+  // Delete account
+  static Future<Map?> deleteAccount(String password) async {
+    try {
+      final r = await http.delete(
+        Uri.parse('$base/api/auth/delete-account'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode({
+          'password': password,
+        }),
+      );
+      if (r.statusCode == 200) {
+        // Clear token after successful deletion
+        token = null;
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.clear();
+        return jsonDecode(r.body);
+      }
+      if (r.statusCode == 400 || r.statusCode == 401) {
+        final error = jsonDecode(r.body);
+        throw Exception(error['message'] ?? 'Invalid password');
+      }
+    } catch (e) {
+      if (kDebugMode) print('Delete account error: $e');
+      rethrow;
     }
     return null;
   }

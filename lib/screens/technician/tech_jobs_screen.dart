@@ -181,11 +181,13 @@ class _TechJobsScreenState extends State<TechJobsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    
     return Scaffold(
-      backgroundColor: Colors.grey[50],
+      backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
         title: const Text('My Jobs', style: TextStyle(fontWeight: FontWeight.bold)),
-        backgroundColor: Colors.white,
+        backgroundColor: theme.primaryColor,
         elevation: 1,
         actions: [
           PopupMenuButton<String>(

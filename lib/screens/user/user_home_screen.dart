@@ -8,6 +8,7 @@ import 'user_chatbot_screen.dart';
 import 'user_bookings_screen.dart';
 import 'user_profile_screen.dart';
 import 'user_settings_screen.dart';
+import 'user_notifications_screen.dart';
 
 class UserHomeScreen extends StatefulWidget {
   const UserHomeScreen({super.key});
@@ -20,11 +21,64 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
   List<Booking>? _recentBookings;
   bool _isLoading = true;
   int _selectedIndex = 0;
+  int _unreadNotificationCount = 0;
+  String _userName = '';
 
   @override
   void initState() {
     super.initState();
     _loadRecentBookings();
+    _loadUnreadNotificationCount();
+    _loadUserProfile();
+  }
+
+  Future<void> _loadUserProfile() async {
+    try {
+      final profile = await Api.getUserProfile();
+      if (mounted && profile != null) {
+        setState(() {
+          _userName = profile['name'] ?? '';
+        });
+      }
+    } catch (e) {
+      // Handle error silently - endpoint may not exist yet
+      // Greeting will show "Welcome!" instead of personalized name
+      if (mounted) {
+        setState(() {
+          _userName = ''; // Will fallback to "Welcome!"
+        });
+      }
+    }
+  }
+
+  String _getGreeting() {
+    final hour = DateTime.now().hour;
+    if (hour < 12) {
+      return 'Good Morning';
+    } else if (hour < 17) {
+      return 'Good Afternoon';
+    } else {
+      return 'Good Evening';
+    }
+  }
+
+  Future<void> _loadUnreadNotificationCount() async {
+    try {
+      final count = await Api.getUnreadNotificationCount();
+      if (mounted) {
+        setState(() {
+          _unreadNotificationCount = count;
+        });
+      }
+    } catch (e) {
+      // Handle error silently - endpoint may not exist yet
+      // Badge will show 0 notifications
+      if (mounted) {
+        setState(() {
+          _unreadNotificationCount = 0;
+        });
+      }
+    }
   }
 
   Future<void> _loadRecentBookings() async {
@@ -145,6 +199,55 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
         backgroundColor: theme.primaryColor,
         elevation: 0,
         actions: [
+          // Notifications icon with badge
+          IconButton(
+            icon: Stack(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.2),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Icon(Icons.notifications, size: 20),
+                ),
+                if (_unreadNotificationCount > 0)
+                  Positioned(
+                    right: 0,
+                    top: 0,
+                    child: Container(
+                      padding: const EdgeInsets.all(4),
+                      decoration: const BoxDecoration(
+                        color: Colors.red,
+                        shape: BoxShape.circle,
+                      ),
+                      constraints: const BoxConstraints(
+                        minWidth: 16,
+                        minHeight: 16,
+                      ),
+                      child: Text(
+                        _unreadNotificationCount > 9 ? '9+' : _unreadNotificationCount.toString(),
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+            onPressed: () async {
+              await Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const UserNotificationsScreen()),
+              );
+              // Reload notification count after returning
+              _loadUnreadNotificationCount();
+            },
+            tooltip: 'Notifications',
+          ),
           IconButton(
             icon: Container(
               padding: const EdgeInsets.all(8),
@@ -297,10 +400,10 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      '${AppLocalizations.of(context).welcome}!',
+                      _userName.isNotEmpty ? '${_getGreeting()}, $_userName!' : '${AppLocalizations.of(context).welcome}!',
                       style: const TextStyle(
                         color: Colors.white,
-                        fontSize: 28,
+                        fontSize: 24,
                         fontWeight: FontWeight.bold,
                         letterSpacing: 0.5,
                       ),

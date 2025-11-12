@@ -199,7 +199,7 @@ class _UserBookingsScreenState extends State<UserBookingsScreen> {
     return EmptyState(
       icon: Icons.work_outline,
       title: 'No ${_filter == 'all' ? '' : _filter} bookings',
-      subtitle: 'Your service requests will appear here',
+      message: 'Your service requests will appear here',
       actionText: 'Request Service',
       onAction: () => Navigator.pushNamed(context, '/request-service'),
     );
