@@ -796,4 +796,668 @@ class Api {
     }
     return null;
   }
+
+  // ============ PICKME FEATURES ============
+
+  // Estimate fare before booking
+  static Future<Map?> estimateFare({
+    required String serviceType,
+    required double lat,
+    required double lng,
+    String urgency = 'normal',
+    String? promoCode,
+  }) async {
+    try {
+      final body = {
+        'serviceType': serviceType,
+        'lat': lat,
+        'lng': lng,
+        'urgency': urgency,
+      };
+      if (promoCode != null && promoCode.isNotEmpty) {
+        body['promoCode'] = promoCode;
+      }
+
+      final r = await http.post(
+        Uri.parse('$base/api/booking/estimate-fare'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode(body),
+      );
+      
+      if (kDebugMode) print('Estimate fare response: ${r.statusCode} ${r.body}');
+      
+      if (r.statusCode == 200) {
+        return jsonDecode(r.body);
+      } else if (r.statusCode == 400) {
+        final error = jsonDecode(r.body);
+        throw Exception(error['message'] ?? 'Invalid promo code');
+      }
+    } catch (e) {
+      if (kDebugMode) print('Estimate fare error: $e');
+      rethrow;
+    }
+    return null;
+  }
+
+  // Update technician location during booking
+  static Future<Map?> updateBookingLocation(String bookingId, double lat, double lng) async {
+    try {
+      final r = await http.post(
+        Uri.parse('$base/api/booking/$bookingId/update-location'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode({'lat': lat, 'lng': lng}),
+      );
+      if (r.statusCode == 200) return jsonDecode(r.body);
+    } catch (e) {
+      if (kDebugMode) print('Update location error: $e');
+    }
+    return null;
+  }
+
+  // Get live tracking data
+  static Future<Map?> getBookingTracking(String bookingId) async {
+    try {
+      final r = await http.get(
+        Uri.parse('$base/api/booking/$bookingId/tracking'),
+        headers: {'Authorization': 'Bearer $token'},
+      );
+      if (r.statusCode == 200) return jsonDecode(r.body);
+    } catch (e) {
+      if (kDebugMode) print('Get tracking error: $e');
+    }
+    return null;
+  }
+
+  // ============ WALLET APIs ============
+
+  // Get wallet balance and summary
+  static Future<Map?> getWallet() async {
+    try {
+      final r = await http.get(
+        Uri.parse('$base/api/wallet'),
+        headers: {'Authorization': 'Bearer $token'},
+      );
+      if (r.statusCode == 200) return jsonDecode(r.body);
+    } catch (e) {
+      if (kDebugMode) print('Get wallet error: $e');
+    }
+    return null;
+  }
+
+  // Add money to wallet
+  static Future<Map?> addMoneyToWallet(double amount, {String paymentMethod = 'card', String? transactionId}) async {
+    try {
+      final r = await http.post(
+        Uri.parse('$base/api/wallet/add-money'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode({
+          'amount': amount,
+          'paymentMethod': paymentMethod,
+          'transactionId': transactionId,
+        }),
+      );
+      if (r.statusCode == 200) return jsonDecode(r.body);
+    } catch (e) {
+      if (kDebugMode) print('Add money error: $e');
+    }
+    return null;
+  }
+
+  // Get wallet transactions
+  static Future<List?> getWalletTransactions({int limit = 50, int skip = 0, String? category}) async {
+    try {
+      var url = '$base/api/wallet/transactions?limit=$limit&skip=$skip';
+      if (category != null) url += '&category=$category';
+      
+      final r = await http.get(
+        Uri.parse(url),
+        headers: {'Authorization': 'Bearer $token'},
+      );
+      if (r.statusCode == 200) {
+        final data = jsonDecode(r.body);
+        return data['transactions'];
+      }
+    } catch (e) {
+      if (kDebugMode) print('Get transactions error: $e');
+    }
+    return null;
+  }
+
+  // Pay for booking with wallet
+  static Future<Map?> payWithWallet(String bookingId, double amount) async {
+    try {
+      final r = await http.post(
+        Uri.parse('$base/api/wallet/pay'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode({
+          'bookingId': bookingId,
+          'amount': amount,
+        }),
+      );
+      if (r.statusCode == 200) return jsonDecode(r.body);
+      if (r.statusCode == 400) {
+        final error = jsonDecode(r.body);
+        throw Exception(error['message'] ?? 'Payment failed');
+      }
+    } catch (e) {
+      if (kDebugMode) print('Pay with wallet error: $e');
+      rethrow;
+    }
+    return null;
+  }
+
+  // Check sufficient balance
+  static Future<Map?> checkBalance(double amount) async {
+    try {
+      final r = await http.get(
+        Uri.parse('$base/api/wallet/check-balance/$amount'),
+        headers: {'Authorization': 'Bearer $token'},
+      );
+      if (r.statusCode == 200) return jsonDecode(r.body);
+    } catch (e) {
+      if (kDebugMode) print('Check balance error: $e');
+    }
+    return null;
+  }
+
+  // ============ PROMO CODE APIs ============
+
+  // Get active promo codes
+  static Future<List?> getActivePromoCodes() async {
+    try {
+      final r = await http.get(
+        Uri.parse('$base/api/promo/active'),
+        headers: {'Authorization': 'Bearer $token'},
+      );
+      if (r.statusCode == 200) {
+        final data = jsonDecode(r.body);
+        return data['promoCodes'];
+      }
+    } catch (e) {
+      if (kDebugMode) print('Get promo codes error: $e');
+    }
+    return null;
+  }
+
+  // Validate promo code
+  static Future<Map?> validatePromoCode(String code, String serviceType, double bookingAmount) async {
+    try {
+      final r = await http.post(
+        Uri.parse('$base/api/promo/validate'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode({
+          'code': code,
+          'serviceType': serviceType,
+          'bookingAmount': bookingAmount,
+        }),
+      );
+      if (r.statusCode == 200) return jsonDecode(r.body);
+      if (r.statusCode == 400 || r.statusCode == 404) {
+        final error = jsonDecode(r.body);
+        throw Exception(error['message'] ?? 'Invalid promo code');
+      }
+    } catch (e) {
+      if (kDebugMode) print('Validate promo error: $e');
+      rethrow;
+    }
+    return null;
+  }
+
+  // ============ REFERRAL APIs ============
+
+  // Get my referral code and stats
+  static Future<Map?> getReferralCode() async {
+    try {
+      final r = await http.get(
+        Uri.parse('$base/api/referral/code'),
+        headers: {'Authorization': 'Bearer $token'},
+      );
+      if (r.statusCode == 200) return jsonDecode(r.body);
+    } catch (e) {
+      if (kDebugMode) print('Get referral code error: $e');
+    }
+    return null;
+  }
+
+  // Apply referral code
+  static Future<Map?> applyReferralCode(String code) async {
+    try {
+      final r = await http.post(
+        Uri.parse('$base/api/referral/apply'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode({'code': code}),
+      );
+      if (r.statusCode == 200) return jsonDecode(r.body);
+      if (r.statusCode == 400) {
+        final error = jsonDecode(r.body);
+        throw Exception(error['message'] ?? 'Invalid referral code');
+      }
+    } catch (e) {
+      if (kDebugMode) print('Apply referral error: $e');
+      rethrow;
+    }
+    return null;
+  }
+
+  // Get referral rewards
+  static Future<List?> getReferralRewards() async {
+    try {
+      final r = await http.get(
+        Uri.parse('$base/api/referral/rewards'),
+        headers: {'Authorization': 'Bearer $token'},
+      );
+      if (r.statusCode == 200) {
+        final data = jsonDecode(r.body);
+        return data['rewards'];
+      }
+    } catch (e) {
+      if (kDebugMode) print('Get referral rewards error: $e');
+    }
+    return null;
+  }
+
+  // Get referral leaderboard
+  static Future<List?> getReferralLeaderboard({int limit = 10}) async {
+    try {
+      final r = await http.get(
+        Uri.parse('$base/api/referral/leaderboard?limit=$limit'),
+        headers: {'Authorization': 'Bearer $token'},
+      );
+      if (r.statusCode == 200) {
+        final data = jsonDecode(r.body);
+        return data['leaderboard'];
+      }
+    } catch (e) {
+      if (kDebugMode) print('Get leaderboard error: $e');
+    }
+    return null;
+  }
+
+  // ============ EMERGENCY BOOKING APIs ============
+
+  // Create emergency booking
+  static Future<Map?> createEmergencyBooking({
+    required String serviceType,
+    required double lat,
+    required double lng,
+    required String address,
+    String urgency = 'emergency',
+    String? description,
+  }) async {
+    try {
+      final r = await http.post(
+        Uri.parse('$base/api/booking/emergency'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode({
+          'serviceType': serviceType,
+          'lat': lat,
+          'lng': lng,
+          'address': address,
+          'urgency': urgency,
+          'description': description,
+        }),
+      );
+      
+      if (kDebugMode) print('Emergency booking response: ${r.statusCode} ${r.body}');
+      
+      if (r.statusCode == 200) {
+        return jsonDecode(r.body);
+      } else {
+        final error = jsonDecode(r.body);
+        throw Exception(error['message'] ?? 'Failed to create emergency booking');
+      }
+    } catch (e) {
+      if (kDebugMode) print('Emergency booking error: $e');
+      rethrow;
+    }
+  }
+
+  // ============ CHATBOT APIs ============
+
+  // Send message to chatbot
+  static Future<Map?> sendChatMessage(String message) async {
+    try {
+      final r = await http.post(
+        Uri.parse('$base/api/chatbot/chat'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode({'message': message}),
+      );
+      if (r.statusCode == 200) return jsonDecode(r.body);
+    } catch (e) {
+      if (kDebugMode) print('Chat error: $e');
+    }
+    return null;
+  }
+
+  // Get chatbot health status
+  static Future<Map?> getChatbotHealth() async {
+    try {
+      final r = await http.get(
+        Uri.parse('$base/api/chatbot/health'),
+        headers: {'Authorization': 'Bearer $token'},
+      );
+      if (r.statusCode == 200) return jsonDecode(r.body);
+    } catch (e) {
+      if (kDebugMode) print('Chatbot health error: $e');
+    }
+    return null;
+  }
+
+  // Get FAQ
+  static Future<Map?> getFAQ() async {
+    try {
+      final r = await http.get(
+        Uri.parse('$base/api/chatbot/faq'),
+        headers: {'Authorization': 'Bearer $token'},
+      );
+      if (r.statusCode == 200) return jsonDecode(r.body);
+    } catch (e) {
+      if (kDebugMode) print('Get FAQ error: $e');
+    }
+    return null;
+  }
+
+  // ============ VERIFICATION APIs ============
+
+  // Submit verification documents (Technician)
+  static Future<Map?> submitVerification(Map<String, dynamic> documents) async {
+    try {
+      final r = await http.post(
+        Uri.parse('$base/api/verification/submit'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode({'documents': documents}),
+      );
+      if (r.statusCode == 200) return jsonDecode(r.body);
+      if (r.statusCode == 400 || r.statusCode == 403) {
+        final error = jsonDecode(r.body);
+        throw Exception(error['message'] ?? 'Failed to submit verification');
+      }
+    } catch (e) {
+      if (kDebugMode) print('Submit verification error: $e');
+      rethrow;
+    }
+    return null;
+  }
+
+  // Get verification status (Technician)
+  static Future<Map?> getVerificationStatus() async {
+    try {
+      final r = await http.get(
+        Uri.parse('$base/api/verification/status'),
+        headers: {'Authorization': 'Bearer $token'},
+      );
+      if (r.statusCode == 200) return jsonDecode(r.body);
+    } catch (e) {
+      if (kDebugMode) print('Get verification status error: $e');
+    }
+    return null;
+  }
+
+  // Get pending verifications (Admin)
+  static Future<Map?> getPendingVerifications() async {
+    try {
+      final r = await http.get(
+        Uri.parse('$base/api/verification/pending'),
+        headers: {'Authorization': 'Bearer $token'},
+      );
+      if (r.statusCode == 200) return jsonDecode(r.body);
+    } catch (e) {
+      if (kDebugMode) print('Get pending verifications error: $e');
+    }
+    return null;
+  }
+
+  // Get verification details (Admin)
+  static Future<Map?> getVerificationDetails(String verificationId) async {
+    try {
+      final r = await http.get(
+        Uri.parse('$base/api/verification/$verificationId'),
+        headers: {'Authorization': 'Bearer $token'},
+      );
+      if (r.statusCode == 200) return jsonDecode(r.body);
+    } catch (e) {
+      if (kDebugMode) print('Get verification details error: $e');
+    }
+    return null;
+  }
+
+  // Verify document (Admin)
+  static Future<Map?> verifyDocument(
+    String verificationId,
+    String documentType,
+    bool verified, {
+    int? documentIndex,
+    String? notes,
+  }) async {
+    try {
+      final r = await http.post(
+        Uri.parse('$base/api/verification/$verificationId/verify-document'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode({
+          'documentType': documentType,
+          'documentIndex': documentIndex,
+          'verified': verified,
+          'notes': notes,
+        }),
+      );
+      if (r.statusCode == 200) return jsonDecode(r.body);
+    } catch (e) {
+      if (kDebugMode) print('Verify document error: $e');
+    }
+    return null;
+  }
+
+  // Approve verification (Admin)
+  static Future<Map?> approveVerification(String verificationId, {String? notes}) async {
+    try {
+      final r = await http.post(
+        Uri.parse('$base/api/verification/$verificationId/approve'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode({'notes': notes}),
+      );
+      if (r.statusCode == 200) return jsonDecode(r.body);
+    } catch (e) {
+      if (kDebugMode) print('Approve verification error: $e');
+    }
+    return null;
+  }
+
+  // Reject verification (Admin)
+  static Future<Map?> rejectVerification(
+    String verificationId,
+    String reason, {
+    String? details,
+    bool canResubmit = true,
+  }) async {
+    try {
+      final r = await http.post(
+        Uri.parse('$base/api/verification/$verificationId/reject'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode({
+          'reason': reason,
+          'details': details,
+          'canResubmit': canResubmit,
+        }),
+      );
+      if (r.statusCode == 200) return jsonDecode(r.body);
+    } catch (e) {
+      if (kDebugMode) print('Reject verification error: $e');
+    }
+    return null;
+  }
+
+  // Get verification statistics (Admin)
+  static Future<Map?> getVerificationStats() async {
+    try {
+      final r = await http.get(
+        Uri.parse('$base/api/verification/admin/stats'),
+        headers: {'Authorization': 'Bearer $token'},
+      );
+      if (r.statusCode == 200) return jsonDecode(r.body);
+    } catch (e) {
+      if (kDebugMode) print('Get verification stats error: $e');
+    }
+    return null;
+  }
+
+  // ============ ANALYTICS APIs ============
+
+  // Get dashboard metrics (Admin)
+  static Future<Map?> getDashboardMetrics({String timeRange = 'today'}) async {
+    try {
+      final r = await http.get(
+        Uri.parse('$base/api/analytics/dashboard?timeRange=$timeRange'),
+        headers: {'Authorization': 'Bearer $token'},
+      );
+      if (r.statusCode == 200) return jsonDecode(r.body);
+    } catch (e) {
+      if (kDebugMode) print('Get dashboard metrics error: $e');
+    }
+    return null;
+  }
+
+  // Get revenue analytics (Admin)
+  static Future<Map?> getRevenueAnalytics({String timeRange = 'month'}) async {
+    try {
+      final r = await http.get(
+        Uri.parse('$base/api/analytics/revenue?timeRange=$timeRange'),
+        headers: {'Authorization': 'Bearer $token'},
+      );
+      if (r.statusCode == 200) return jsonDecode(r.body);
+    } catch (e) {
+      if (kDebugMode) print('Get revenue analytics error: $e');
+    }
+    return null;
+  }
+
+  // Get performance analytics (Admin)
+  static Future<Map?> getPerformanceAnalytics({String timeRange = 'month'}) async {
+    try {
+      final r = await http.get(
+        Uri.parse('$base/api/analytics/performance?timeRange=$timeRange'),
+        headers: {'Authorization': 'Bearer $token'},
+      );
+      if (r.statusCode == 200) return jsonDecode(r.body);
+    } catch (e) {
+      if (kDebugMode) print('Get performance analytics error: $e');
+    }
+    return null;
+  }
+
+  // Get user statistics (Admin)
+  static Future<Map?> getUserStatistics({String timeRange = 'month'}) async {
+    try {
+      final r = await http.get(
+        Uri.parse('$base/api/analytics/users?timeRange=$timeRange'),
+        headers: {'Authorization': 'Bearer $token'},
+      );
+      if (r.statusCode == 200) return jsonDecode(r.body);
+    } catch (e) {
+      if (kDebugMode) print('Get user statistics error: $e');
+    }
+    return null;
+  }
+
+  // Get service analytics (Admin)
+  static Future<Map?> getServiceAnalytics({String timeRange = 'month'}) async {
+    try {
+      final r = await http.get(
+        Uri.parse('$base/api/analytics/services?timeRange=$timeRange'),
+        headers: {'Authorization': 'Bearer $token'},
+      );
+      if (r.statusCode == 200) return jsonDecode(r.body);
+    } catch (e) {
+      if (kDebugMode) print('Get service analytics error: $e');
+    }
+    return null;
+  }
+
+  // Get service type analytics (Admin) - alias for getServiceAnalytics
+  static Future<Map?> getServiceTypeAnalytics({String timeRange = 'month'}) async {
+    return getServiceAnalytics(timeRange: timeRange);
+  }
+
+  // Get comprehensive analytics report (Admin)
+  static Future<Map?> getAnalyticsReport({String timeRange = 'month'}) async {
+    try {
+      final r = await http.get(
+        Uri.parse('$base/api/analytics/report?timeRange=$timeRange'),
+        headers: {'Authorization': 'Bearer $token'},
+      );
+      if (r.statusCode == 200) return jsonDecode(r.body);
+    } catch (e) {
+      if (kDebugMode) print('Get analytics report error: $e');
+    }
+    return null;
+  }
+
+  // Export analytics data (Admin)
+  static Future<Map?> exportAnalytics({
+    String type = 'revenue',
+    String timeRange = 'month',
+  }) async {
+    try {
+      final r = await http.get(
+        Uri.parse('$base/api/analytics/export?type=$type&timeRange=$timeRange'),
+        headers: {'Authorization': 'Bearer $token'},
+      );
+      if (r.statusCode == 200) return jsonDecode(r.body);
+    } catch (e) {
+      if (kDebugMode) print('Export analytics error: $e');
+    }
+    return null;
+  }
+
+  // Get all verifications (Admin)
+  static Future<List?> getAllVerifications() async {
+    try {
+      final r = await http.get(
+        Uri.parse('$base/api/verification/all'),
+        headers: {'Authorization': 'Bearer $token'},
+      );
+      if (r.statusCode == 200) {
+        final data = jsonDecode(r.body);
+        return data['verifications'] as List?;
+      }
+    } catch (e) {
+      if (kDebugMode) print('Get all verifications error: $e');
+    }
+    return null;
+  }
 }
