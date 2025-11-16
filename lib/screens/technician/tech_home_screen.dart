@@ -11,6 +11,7 @@ import 'tech_profile_screen.dart';
 import 'technician_settings_screen.dart';
 import 'tech_notifications_screen.dart';
 import 'tech_feedback_screen.dart';
+import 'tech_verification_screen.dart';
 
 class TechnicianHomeScreen extends StatefulWidget {
   const TechnicianHomeScreen({super.key});
@@ -172,16 +173,22 @@ class _TechnicianHomeScreenState extends State<TechnicianHomeScreen> {
       case 2:
         Navigator.push(
           context,
-          MaterialPageRoute(builder: (_) => const TechFeedbackScreen()),
+          MaterialPageRoute(builder: (_) => const TechVerificationScreen()),
         );
         break;
       case 3:
         Navigator.push(
           context,
-          MaterialPageRoute(builder: (_) => const TechChatbotScreen()),
+          MaterialPageRoute(builder: (_) => const TechFeedbackScreen()),
         );
         break;
       case 4:
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const TechChatbotScreen()),
+        );
+        break;
+      case 5:
         Navigator.push(
           context,
           MaterialPageRoute(builder: (_) => const TechnicianSettingsScreen()),
@@ -301,6 +308,10 @@ class _TechnicianHomeScreenState extends State<TechnicianHomeScreen> {
           BottomNavigationBarItem(
             icon: Icon(Icons.work),
             label: 'Jobs',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.verified_user),
+            label: 'Verify',
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.star),

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import '../services/chatbot_api.dart';
+import '../services/api.dart';
 
 class ChatbotScreen extends StatefulWidget {
   const ChatbotScreen({super.key});
@@ -44,17 +44,41 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
 
     _scrollToBottom();
 
-    final response = await ChatbotApi.sendMessageWithContext(text);
+    try {
+      final response = await Api.sendChatMessage(text);
 
-    setState(() {
-      _messages.add({
-        'sender': 'bot',
-        'text': response['reply'],
-        'time': DateTime.now(),
-        'context': response['context'],
+      if (response != null && mounted) {
+        setState(() {
+          _messages.add({
+            'sender': 'bot',
+            'text': response['message'] ?? 'I apologize, I didn\'t understand that. Can you rephrase?',
+            'time': DateTime.now(),
+            'context': response['intent'],
+            'serviceType': response['serviceType'],
+            'priority': response['priority'],
+          });
+          _isTyping = false;
+        });
+      } else {
+        setState(() {
+          _messages.add({
+            'sender': 'bot',
+            'text': 'Sorry, I\'m having trouble connecting. Please try again.',
+            'time': DateTime.now(),
+          });
+          _isTyping = false;
+        });
+      }
+    } catch (e) {
+      setState(() {
+        _messages.add({
+          'sender': 'bot',
+          'text': 'An error occurred. Please try again later.',
+          'time': DateTime.now(),
+        });
+        _isTyping = false;
       });
-      _isTyping = false;
-    });
+    }
 
     _scrollToBottom();
   }

@@ -10,6 +10,8 @@ import 'admin_users_screen.dart';
 import 'admin_bookings_screen.dart';
 import 'admin_profile_screen.dart';
 import 'admin_settings_screen.dart';
+import 'admin_analytics_screen.dart';
+import 'admin_verifications_screen.dart';
 
 class AdminHomeScreen extends StatefulWidget {
   const AdminHomeScreen({super.key});
@@ -86,16 +88,22 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
       case 1:
         Navigator.push(
           context,
-          MaterialPageRoute(builder: (_) => const AdminUsersScreen()),
+          MaterialPageRoute(builder: (_) => const AdminAnalyticsScreen()),
         );
         break;
       case 2:
         Navigator.push(
           context,
-          MaterialPageRoute(builder: (_) => const AdminBookingsScreen()),
+          MaterialPageRoute(builder: (_) => const AdminVerificationsScreen()),
         );
         break;
       case 3:
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const AdminBookingsScreen()),
+        );
+        break;
+      case 4:
         Navigator.push(
           context,
           MaterialPageRoute(builder: (_) => const AdminSettingsScreen()),
@@ -182,8 +190,12 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
             label: 'Dashboard',
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.people),
-            label: 'Users',
+            icon: Icon(Icons.analytics),
+            label: 'Analytics',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.verified_user),
+            label: 'Verify',
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.work),

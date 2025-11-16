@@ -94,7 +94,30 @@ class _BookingTrackingScreenState extends State<BookingTrackingScreen> {
   }
 
   Future<void> _fetchBookingDetails() async {
-   
+    try {
+      final trackingData = await Api.getBookingTracking(widget.bookingId);
+      if (trackingData != null && mounted) {
+        final tracking = trackingData['tracking'];
+        final techLocation = tracking?['technicianLocation'];
+        
+        if (techLocation != null) {
+          setState(() {
+            _technicianLocation = LatLng(
+              techLocation['lat'],
+              techLocation['lng'],
+            );
+            _distanceInKm = tracking['distance'];
+            _etaInMinutes = trackingData['eta'];
+            _bookingStatus = trackingData['status'] ?? 'pending';
+          });
+          
+          _updateMarkers();
+          // Route will be drawn by existing methods
+        }
+      }
+    } catch (e) {
+      debugPrint('Error fetching booking details: $e');
+    }
   }
 
   void _updateTechnicianLocation(Map<String, dynamic> data) {

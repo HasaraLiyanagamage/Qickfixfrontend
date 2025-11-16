@@ -280,6 +280,7 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
           const SizedBox(width: 8),
         ],
       ),
+      drawer: _buildDrawer(theme, isDark),
       body: RefreshIndicator(
         onRefresh: _loadRecentBookings,
         child: SingleChildScrollView(
@@ -919,6 +920,131 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
             ),
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildDrawer(ThemeData theme, bool isDark) {
+    return Drawer(
+      child: ListView(
+        padding: EdgeInsets.zero,
+        children: [
+          DrawerHeader(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  theme.primaryColor,
+                  theme.primaryColor.withValues(alpha: 0.8),
+                ],
+              ),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                const CircleAvatar(
+                  radius: 30,
+                  backgroundColor: Colors.white,
+                  child: Icon(Icons.person, size: 35, color: Colors.blue),
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  _userName.isNotEmpty ? _userName : 'User',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          ListTile(
+            leading: const Icon(Icons.home),
+            title: const Text('Home'),
+            onTap: () => Navigator.pop(context),
+          ),
+          ListTile(
+            leading: const Icon(Icons.history),
+            title: const Text('My Bookings'),
+            onTap: () {
+              Navigator.pop(context);
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const UserBookingsScreen()),
+              );
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.notifications),
+            title: const Text('Notifications'),
+            trailing: _unreadNotificationCount > 0
+                ? Container(
+                    padding: const EdgeInsets.all(6),
+                    decoration: const BoxDecoration(
+                      color: Colors.red,
+                      shape: BoxShape.circle,
+                    ),
+                    child: Text(
+                      _unreadNotificationCount > 9
+                          ? '9+'
+                          : _unreadNotificationCount.toString(),
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  )
+                : null,
+            onTap: () {
+              Navigator.pop(context);
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const UserNotificationsScreen()),
+              );
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.person),
+            title: const Text('Profile'),
+            onTap: () {
+              Navigator.pop(context);
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const UserProfileScreen()),
+              );
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.chat_bubble_outline),
+            title: const Text('Chat Support'),
+            onTap: () {
+              Navigator.pop(context);
+              _openChatbot(context);
+            },
+          ),
+          const Divider(),
+          ListTile(
+            leading: const Icon(Icons.settings),
+            title: const Text('Settings'),
+            onTap: () {
+              Navigator.pop(context);
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const UserSettingsScreen()),
+              );
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.logout, color: Colors.red),
+            title: const Text('Logout', style: TextStyle(color: Colors.red)),
+            onTap: () {
+              Navigator.pop(context);
+              _logout(context);
+            },
+          ),
+        ],
       ),
     );
   }
