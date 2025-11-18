@@ -223,7 +223,6 @@ class _UserNotificationsScreenState extends State<UserNotificationsScreen> {
                         icon: Icons.notifications_none,
                         title: 'No notifications',
                         subtitle: 'You\'ll see updates about your bookings and new technicians here',
-                        message: 'You\'ll see updates about your bookings and new technicians here',
                       )
                     : RefreshIndicator(
                         onRefresh: _loadNotifications,

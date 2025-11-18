@@ -3,7 +3,9 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../models/app_models.dart';
 import '../../services/api.dart';
 import '../../utils/logger.dart';
+import '../../utils/app_theme.dart';
 import '../chat_screen.dart';
+import 'provide_quotation_screen.dart';
 
 class TechJobsScreen extends StatefulWidget {
   const TechJobsScreen({super.key});
@@ -63,6 +65,21 @@ class _TechJobsScreenState extends State<TechJobsScreen> {
         _loadJobs();
       }
     });
+
+    // Listen for payment initiated by user
+    Api.socket?.on('payment:initiated', (data) {
+      AppLogger.debug('Payment initiated via socket: $data');
+      if (mounted) {
+        _loadJobs();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Customer has initiated ${data['paymentMethod']} payment'),
+            backgroundColor: Colors.orange,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+    });
   }
 
   @override
@@ -71,6 +88,7 @@ class _TechJobsScreenState extends State<TechJobsScreen> {
     Api.socket?.off('booking:updated');
     Api.socket?.off('booking:status');
     Api.socket?.off('booking:assigned');
+    Api.socket?.off('payment:initiated');
     super.dispose();
   }
 
@@ -453,15 +471,77 @@ class _TechJobsScreenState extends State<TechJobsScreen> {
             ),
             const SizedBox(width: 8),
             ElevatedButton.icon(
-              onPressed: () => _updateJobStatus(job, 'in_progress'),
-              icon: const Icon(Icons.play_arrow, size: 16),
-              label: const Text('Start'),
+              onPressed: () => _updateJobStatus(job, 'arrived'),
+              icon: const Icon(Icons.location_on, size: 16),
+              label: const Text('Arrived'),
               style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.orangeAccent,
+                backgroundColor: Colors.green,
                 foregroundColor: Colors.white,
               ),
             ),
           ],
+        );
+      case 'arrived':
+      case 'inspecting':
+        return Row(
+          children: [
+            OutlinedButton.icon(
+              onPressed: () => _callCustomer(job),
+              icon: const Icon(Icons.phone, size: 16),
+              label: const Text('Call'),
+              style: OutlinedButton.styleFrom(
+                side: BorderSide(color: Colors.green),
+                foregroundColor: Colors.green,
+              ),
+            ),
+            const SizedBox(width: 8),
+            ElevatedButton.icon(
+              onPressed: () => _provideQuotation(job),
+              icon: const Icon(Icons.receipt_long, size: 16),
+              label: const Text('Provide Quote'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppTheme.primaryBlue,
+                foregroundColor: Colors.white,
+              ),
+            ),
+          ],
+        );
+      case 'quoted':
+        return Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: Colors.orange[50],
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.orange),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.hourglass_empty, size: 16, color: Colors.orange[700]),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Awaiting customer approval',
+                    style: TextStyle(
+                      color: Colors.orange[700],
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        );
+      case 'quote_approved':
+        return ElevatedButton.icon(
+          onPressed: () => _updateJobStatus(job, 'in_progress'),
+          icon: const Icon(Icons.play_arrow, size: 16),
+          label: const Text('Start Work'),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: AppTheme.success,
+            foregroundColor: Colors.white,
+          ),
         );
       case 'in_progress':
         return Row(
@@ -487,18 +567,108 @@ class _TechJobsScreenState extends State<TechJobsScreen> {
             ),
           ],
         );
-      case 'completed':
-        return OutlinedButton.icon(
-          onPressed: () {},
-          icon: const Icon(Icons.star_outline, size: 16),
-          label: const Text('Rate Customer'),
-          style: OutlinedButton.styleFrom(
-            side: BorderSide(color: Colors.orange[500]!),
-            foregroundColor: Colors.orange[500],
+      case 'payment_pending':
+        return ElevatedButton.icon(
+          onPressed: () => _confirmPaymentReceived(job),
+          icon: const Icon(Icons.check_circle, size: 16),
+          label: const Text('Confirm Payment'),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: AppTheme.success,
+            foregroundColor: Colors.white,
           ),
         );
+      case 'completed':
+        // Check if payment is actually completed
+        if (job.isPaid) {
+          return Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            decoration: BoxDecoration(
+              color: Colors.green[50],
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: Colors.green),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.check_circle, size: 16, color: Colors.green[700]),
+                const SizedBox(width: 8),
+                Text(
+                  'Payment Received',
+                  style: TextStyle(
+                    color: Colors.green[700],
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          );
+        } else if (job.isPaymentPending) {
+          // Payment initiated but not confirmed yet - show confirm button
+          return ElevatedButton.icon(
+            onPressed: () => _confirmPaymentReceived(job),
+            icon: const Icon(Icons.check_circle, size: 16),
+            label: const Text('Confirm Payment'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppTheme.success,
+              foregroundColor: Colors.white,
+            ),
+          );
+        } else {
+          // Work completed but payment not yet initiated
+          return Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            decoration: BoxDecoration(
+              color: Colors.orange[50],
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: Colors.orange),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.hourglass_empty, size: 16, color: Colors.orange[700]),
+                const SizedBox(width: 8),
+                Text(
+                  'Awaiting payment',
+                  style: TextStyle(
+                    color: Colors.orange[700],
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          );
+        }
       default:
         return const SizedBox.shrink();
+    }
+  }
+
+  void _confirmPaymentReceived(Booking job) async {
+    try {
+      final success = await Api.confirmPaymentReceived(bookingId: job.id);
+      
+      if (success && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Payment confirmed! Job completed.'),
+            backgroundColor: AppTheme.success,
+          ),
+        );
+        _loadJobs(); // Refresh the jobs list
+      } else if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Failed to confirm payment'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e')),
+        );
+      }
     }
   }
 
@@ -550,6 +720,31 @@ class _TechJobsScreenState extends State<TechJobsScreen> {
         );
       }
     }
+  }
+
+  void _provideQuotation(Booking job) {
+    if (job.user == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Customer information not available')),
+      );
+      return;
+    }
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => ProvideQuotationScreen(
+          bookingId: job.id,
+          serviceType: job.serviceType,
+          customerName: job.user!.name,
+        ),
+      ),
+    ).then((result) {
+      // Reload jobs if quotation was provided
+      if (result == true) {
+        _loadJobs();
+      }
+    });
   }
 
   void _openChat(Booking job) {

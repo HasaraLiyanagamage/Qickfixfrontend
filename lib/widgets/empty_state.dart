@@ -16,7 +16,7 @@ class EmptyState extends StatelessWidget {
     this.subtitle,
     this.actionText,
     this.onAction,
-    this.iconColor, required String message,
+    this.iconColor,
   });
 
   @override

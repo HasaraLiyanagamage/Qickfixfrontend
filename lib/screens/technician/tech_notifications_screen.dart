@@ -226,7 +226,6 @@ class _TechNotificationsScreenState extends State<TechNotificationsScreen> {
                         icon: Icons.notifications_none,
                         title: 'No notifications',
                         subtitle: 'You\'ll see updates about new bookings and job status here',
-                        message: 'You\'ll see updates about new bookings and job status here',
                       )
                     : RefreshIndicator(
                         onRefresh: _loadNotifications,

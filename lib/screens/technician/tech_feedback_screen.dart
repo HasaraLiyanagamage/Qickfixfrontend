@@ -112,7 +112,6 @@ class _TechFeedbackScreenState extends State<TechFeedbackScreen> {
                             icon: Icons.star_border,
                             title: 'No feedback yet',
                             subtitle: 'Complete jobs to receive ratings and feedback from customers',
-                            message: 'Complete jobs to receive ratings and feedback from customers',
                           ),
                         )
                       : Column(

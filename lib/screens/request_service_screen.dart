@@ -16,9 +16,11 @@ class RequestServiceScreen extends StatefulWidget {
 
 class _RequestServiceScreenState extends State<RequestServiceScreen> {
   final TextEditingController _addressController = TextEditingController();
+  final TextEditingController _searchController = TextEditingController();
   String? _selectedService;
   bool _isLoadingLocation = false;
   bool _isGeocodingAddress = false;
+  String _searchQuery = '';
 
   final List<Map<String, dynamic>> _services = [
     {'name': 'Plumbing', 'icon': Icons.plumbing, 'color': Colors.blue},
@@ -40,7 +42,17 @@ class _RequestServiceScreenState extends State<RequestServiceScreen> {
   @override
   void dispose() {
     _addressController.dispose();
+    _searchController.dispose();
     super.dispose();
+  }
+
+  List<Map<String, dynamic>> get _filteredServices {
+    if (_searchQuery.isEmpty) {
+      return _services;
+    }
+    return _services.where((service) {
+      return service['name'].toString().toLowerCase().contains(_searchQuery.toLowerCase());
+    }).toList();
   }
 
   Future<void> _useCurrentLocation() async {
@@ -175,8 +187,78 @@ class _RequestServiceScreenState extends State<RequestServiceScreen> {
                   ),
                   const SizedBox(height: 16),
 
+                  // Search Bar
+                  TextField(
+                    controller: _searchController,
+                    onChanged: (value) {
+                      setState(() {
+                        _searchQuery = value;
+                      });
+                    },
+                    decoration: InputDecoration(
+                      hintText: 'Search services (e.g., plumbing, electrical)...',
+                      hintStyle: TextStyle(color: Colors.grey[400], fontSize: 14),
+                      prefixIcon: const Icon(Icons.search, color: Colors.blueAccent),
+                      suffixIcon: _searchQuery.isNotEmpty
+                          ? IconButton(
+                              icon: const Icon(Icons.clear, color: Colors.grey),
+                              onPressed: () {
+                                setState(() {
+                                  _searchController.clear();
+                                  _searchQuery = '';
+                                });
+                              },
+                            )
+                          : null,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: const BorderSide(color: Colors.blueAccent, width: 2),
+                      ),
+                      filled: true,
+                      fillColor: Colors.white,
+                      contentPadding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+
               // Service Selection Grid
-              GridView.builder(
+              _filteredServices.isEmpty
+                  ? Center(
+                      child: Padding(
+                        padding: const EdgeInsets.all(32),
+                        child: Column(
+                          children: [
+                            Icon(
+                              Icons.search_off,
+                              size: 64,
+                              color: Colors.grey[400],
+                            ),
+                            const SizedBox(height: 16),
+                            Text(
+                              'No services found',
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.grey[600],
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              'Try searching for "plumbing", "electrical", or "emergency"',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: Colors.grey[500],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    )
+                  : GridView.builder(
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
                 gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
@@ -185,9 +267,9 @@ class _RequestServiceScreenState extends State<RequestServiceScreen> {
                   mainAxisSpacing: 12,
                   childAspectRatio: 1.3,
                 ),
-                itemCount: _services.length,
+                itemCount: _filteredServices.length,
                 itemBuilder: (context, index) {
-                  final service = _services[index];
+                  final service = _filteredServices[index];
                   final isSelected = _selectedService == service['name'];
                   
                   return ModernCard(

@@ -27,6 +27,13 @@ dependencies:
   share_plus: ^7.2.1
   url_launcher: ^6.2.2
   flutter_polyline_points: ^2.0.0
+  pdf: ^3.10.4
+  printing: ^5.11.0
+  path_provider: ^2.1.1
+  table_calendar: ^3.0.9
+  flutter_stripe: ^10.1.1
+  image_picker: ^1.0.4
+  file_picker: ^6.1.1
 
 dev_dependencies:
   flutter_test:

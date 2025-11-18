@@ -128,13 +128,6 @@ class _TechVerificationScreenState extends State<TechVerificationScreen> {
     }
   }
 
-  String _getVerificationLevel(int score) {
-    if (score >= 90) return 'Gold';
-    if (score >= 70) return 'Silver';
-    if (score >= 50) return 'Bronze';
-    return 'Basic';
-  }
-
   @override
   void dispose() {
     for (var c in _controllers.values) {

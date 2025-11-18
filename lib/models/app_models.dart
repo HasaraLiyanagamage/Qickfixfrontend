@@ -178,6 +178,9 @@ class Booking {
   final int? ratingScore;
   final String? ratingReview;
   final DateTime? ratedAt;
+  final String? paymentMethod;
+  final String? paymentStatus;
+  final DateTime? paidAt;
 
   Booking({
     required this.id,
@@ -196,6 +199,9 @@ class Booking {
     this.ratingScore,
     this.ratingReview,
     this.ratedAt,
+    this.paymentMethod,
+    this.paymentStatus,
+    this.paidAt,
   });
 
   factory Booking.fromJson(Map<String, dynamic> json) {
@@ -260,6 +266,23 @@ class Booking {
       }
     }
 
+    // Parse payment info
+    String? paymentMethod;
+    String? paymentStatus;
+    DateTime? paidAt;
+    if (json['payment'] != null && json['payment'] is Map) {
+      final payment = json['payment'] as Map<String, dynamic>;
+      paymentMethod = payment['method'];
+      paymentStatus = payment['status'];
+      if (payment['paidAt'] != null) {
+        try {
+          paidAt = DateTime.parse(payment['paidAt']);
+        } catch (e) {
+          paidAt = null;
+        }
+      }
+    }
+
     return Booking(
       id: json['_id'] ?? json['id'] ?? '',
       userId: userId,
@@ -277,6 +300,9 @@ class Booking {
       ratingScore: ratingScore,
       ratingReview: ratingReview,
       ratedAt: ratedAt,
+      paymentMethod: paymentMethod,
+      paymentStatus: paymentStatus,
+      paidAt: paidAt,
     );
   }
 
@@ -333,6 +359,13 @@ class Booking {
   }
 
   bool get hasRating => ratingScore != null;
+  
+  bool get isPaid => paymentStatus == 'completed';
+  
+  bool get isPaymentPending => paymentStatus == 'pending' || status == 'payment_pending';
+  
+  // Show Pay Now button if: status is completed AND payment is not completed AND not pending
+  bool get needsPayment => status == 'completed' && paymentStatus != 'completed' && !isPaymentPending;
 
   Booking copyWith({
     String? status,

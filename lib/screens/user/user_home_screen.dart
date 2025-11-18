@@ -9,6 +9,9 @@ import 'user_bookings_screen.dart';
 import 'user_profile_screen.dart';
 import 'user_settings_screen.dart';
 import 'user_notifications_screen.dart';
+import 'favorites_screen.dart';
+import 'service_packages_screen.dart';
+import 'service_history_screen.dart';
 
 class UserHomeScreen extends StatefulWidget {
   const UserHomeScreen({super.key});
@@ -924,6 +927,124 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
     );
   }
 
+  void _showPaymentHistory() async {
+    try {
+      final payments = await Api.getPaymentHistory();
+      if (!mounted) return;
+      
+      showModalBottomSheet(
+        context: context,
+        isScrollControlled: true,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        builder: (context) => DraggableScrollableSheet(
+          initialChildSize: 0.7,
+          minChildSize: 0.5,
+          maxChildSize: 0.95,
+          expand: false,
+          builder: (context, scrollController) => Column(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).primaryColor,
+                  borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.payment, color: Colors.white),
+                    const SizedBox(width: 12),
+                    const Text(
+                      'Payment History',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const Spacer(),
+                    IconButton(
+                      icon: const Icon(Icons.close, color: Colors.white),
+                      onPressed: () => Navigator.pop(context),
+                    ),
+                  ],
+                ),
+              ),
+              Expanded(
+                child: payments.isEmpty
+                    ? const Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.payment_outlined, size: 64, color: Colors.grey),
+                            SizedBox(height: 16),
+                            Text(
+                              'No payment history',
+                              style: TextStyle(fontSize: 16, color: Colors.grey),
+                            ),
+                          ],
+                        ),
+                      )
+                    : ListView.builder(
+                        controller: scrollController,
+                        padding: const EdgeInsets.all(16),
+                        itemCount: payments.length,
+                        itemBuilder: (context, index) {
+                          final payment = payments[index];
+                          return Card(
+                            margin: const EdgeInsets.only(bottom: 12),
+                            child: ListTile(
+                              leading: CircleAvatar(
+                                backgroundColor: payment['status'] == 'completed'
+                                    ? Colors.green
+                                    : Colors.orange,
+                                child: Icon(
+                                  payment['paymentMethod'] == 'card'
+                                      ? Icons.credit_card
+                                      : Icons.money,
+                                  color: Colors.white,
+                                ),
+                              ),
+                              title: Text(
+                                'LKR ${payment['amount'] ?? 0}',
+                                style: const TextStyle(fontWeight: FontWeight.bold),
+                              ),
+                              subtitle: Text(
+                                '${payment['paymentMethod']?.toString().toUpperCase() ?? 'N/A'} • ${payment['status'] ?? 'N/A'}',
+                              ),
+                              trailing: Text(
+                                payment['createdAt'] != null
+                                    ? _formatDate(payment['createdAt'])
+                                    : 'N/A',
+                                style: const TextStyle(fontSize: 12, color: Colors.grey),
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+              ),
+            ],
+          ),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error loading payment history: $e')),
+      );
+    }
+  }
+
+  String _formatDate(String dateStr) {
+    try {
+      final date = DateTime.parse(dateStr);
+      return '${date.day}/${date.month}/${date.year}';
+    } catch (e) {
+      return 'N/A';
+    }
+  }
+
   Widget _buildDrawer(ThemeData theme, bool isDark) {
     return Drawer(
       child: ListView(
@@ -1022,6 +1143,47 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
             onTap: () {
               Navigator.pop(context);
               _openChatbot(context);
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.favorite),
+            title: const Text('Favorites'),
+            onTap: () {
+              Navigator.pop(context);
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const FavoritesScreen()),
+              );
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.card_giftcard),
+            title: const Text('Service Packages'),
+            onTap: () {
+              Navigator.pop(context);
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const ServicePackagesScreen()),
+              );
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.receipt_long),
+            title: const Text('Service History'),
+            onTap: () {
+              Navigator.pop(context);
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const ServiceHistoryScreen()),
+              );
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.payment),
+            title: const Text('Payment History'),
+            onTap: () {
+              Navigator.pop(context);
+              _showPaymentHistory();
             },
           ),
           const Divider(),

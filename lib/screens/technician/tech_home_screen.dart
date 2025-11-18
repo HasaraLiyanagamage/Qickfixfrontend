@@ -659,9 +659,6 @@ class _TechnicianHomeScreenState extends State<TechnicianHomeScreen> {
               subtitle: _isAvailable 
                   ? 'Jobs will appear here when customers request services'
                   : 'Turn on availability to receive jobs',
-              message: _isAvailable 
-                  ? 'Jobs will appear here when customers request services'
-                  : 'Turn on availability to receive jobs',
             )
           else
             Column(

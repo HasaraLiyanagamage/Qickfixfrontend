@@ -10,6 +10,7 @@ import '../../widgets/status_badge.dart';
 import '../../widgets/empty_state.dart';
 import '../tracking_screen.dart';
 import '../chat_screen.dart';
+import 'booking_payment_screen.dart';
 
 class UserBookingsScreen extends StatefulWidget {
   const UserBookingsScreen({super.key});
@@ -22,12 +23,95 @@ class _UserBookingsScreenState extends State<UserBookingsScreen> {
   List<Booking>? _bookings;
   bool _isLoading = true;
   String _filter = 'all'; // all, active, completed
+  Set<String> _favoriteTechnicianIds = {}; // Track favorite technicians
 
   @override
   void initState() {
     super.initState();
     _loadBookings();
+    _loadFavorites();
     _setupSocketListeners();
+  }
+
+  Future<void> _loadFavorites() async {
+    try {
+      final favorites = await Api.getFavorites();
+      if (favorites != null && mounted) {
+        setState(() {
+          _favoriteTechnicianIds = favorites
+              .map((fav) => fav['technician']?['_id'] as String?)
+              .where((id) => id != null)
+              .cast<String>()
+              .toSet();
+        });
+      }
+    } catch (e) {
+      AppLogger.error('Error loading favorites', error: e);
+    }
+  }
+
+  Future<void> _toggleFavorite(Booking booking) async {
+    if (booking.technician == null) return;
+    
+    final technicianId = booking.technician!.id;
+    final isFavorite = _favoriteTechnicianIds.contains(technicianId);
+    
+    try {
+      bool success;
+      if (isFavorite) {
+        success = await Api.removeFavorite(technicianId);
+        if (success && mounted) {
+          setState(() {
+            _favoriteTechnicianIds.remove(technicianId);
+          });
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Removed ${booking.technician!.user!.name} from favorites'),
+              backgroundColor: Colors.orange,
+            ),
+          );
+        }
+      } else {
+        success = await Api.addFavorite(technicianId);
+        if (success && mounted) {
+          setState(() {
+            _favoriteTechnicianIds.add(technicianId);
+          });
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Added ${booking.technician!.user!.name} to favorites'),
+              backgroundColor: Colors.green,
+              action: SnackBarAction(
+                label: 'VIEW',
+                textColor: Colors.white,
+                onPressed: () {
+                  Navigator.pushNamed(context, '/favorites');
+                },
+              ),
+            ),
+          );
+        }
+      }
+      
+      if (!success && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Failed to update favorites. Please try again.'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } catch (e) {
+      AppLogger.error('Error toggling favorite', error: e);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
   void _setupSocketListeners() async {
@@ -77,6 +161,21 @@ class _UserBookingsScreenState extends State<UserBookingsScreen> {
         _loadBookings();
       }
     });
+
+    // Listen for payment confirmation by technician
+    Api.socket?.on('payment:confirmed', (data) {
+      AppLogger.debug('Payment confirmed via socket: $data');
+      if (mounted) {
+        _loadBookings();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Payment confirmed by technician!'),
+            backgroundColor: AppTheme.success,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+    });
   }
 
   @override
@@ -86,6 +185,7 @@ class _UserBookingsScreenState extends State<UserBookingsScreen> {
     Api.socket?.off('booking:status');
     Api.socket?.off('booking:accepted');
     Api.socket?.off('booking:completed');
+    Api.socket?.off('payment:confirmed');
     super.dispose();
   }
 
@@ -199,7 +299,7 @@ class _UserBookingsScreenState extends State<UserBookingsScreen> {
     return EmptyState(
       icon: Icons.work_outline,
       title: 'No ${_filter == 'all' ? '' : _filter} bookings',
-      message: 'Your service requests will appear here',
+      subtitle: 'Your service requests will appear here',
       actionText: 'Request Service',
       onAction: () => Navigator.pushNamed(context, '/request-service'),
     );
@@ -332,6 +432,19 @@ class _UserBookingsScreenState extends State<UserBookingsScreen> {
                     ),
                   ),
                   IconButton(
+                    onPressed: () => _toggleFavorite(booking),
+                    icon: Icon(
+                      Icons.favorite,
+                      size: 20,
+                      color: _favoriteTechnicianIds.contains(booking.technician!.id) 
+                          ? Colors.red 
+                          : Colors.grey[400],
+                    ),
+                    tooltip: _favoriteTechnicianIds.contains(booking.technician!.id)
+                        ? 'Remove from favorites' 
+                        : 'Add to favorites',
+                  ),
+                  IconButton(
                     onPressed: () => _callTechnician(booking),
                     icon: const Icon(Icons.phone, size: 20),
                     color: Colors.green,
@@ -344,65 +457,162 @@ class _UserBookingsScreenState extends State<UserBookingsScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              if (booking.status == 'completed') ...[
-                if (booking.hasRating) ...[
-                  // Show rating if already rated
-                  Row(
-                    children: [
-                      ...List.generate(5, (index) {
-                        return Icon(
-                          index < (booking.ratingScore ?? 0)
-                              ? Icons.star
-                              : Icons.star_border,
-                          color: Colors.amber,
-                          size: 20,
-                        );
-                      }),
-                      const SizedBox(width: 8),
-                      Text(
-                        'You rated ${booking.ratingScore} star${(booking.ratingScore ?? 0) > 1 ? 's' : ''}',
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: Colors.grey[700],
-                          fontWeight: FontWeight.w500,
+              // Payment/Quotation button for specific statuses
+              if (booking.status == 'quoted' || 
+                  booking.status == 'quote_approved' ||
+                  booking.status == 'inspecting' ||
+                  booking.status == 'completed' ||
+                  booking.status == 'payment_pending') ...[
+                // Show appropriate button based on status and payment
+                if (booking.status == 'quoted') ...[
+                  ElevatedButton.icon(
+                    onPressed: () => _openPaymentScreen(booking),
+                    icon: const Icon(Icons.receipt_long, size: 16),
+                    label: const Text('View Quote'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.blue,
+                      foregroundColor: Colors.white,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                ] else if (booking.isPaymentPending) ...[
+                  // Show awaiting confirmation when payment is pending
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: Colors.orange[50],
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.orange),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.hourglass_empty, size: 16, color: Colors.orange[700]),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Awaiting confirmation',
+                          style: TextStyle(
+                            color: Colors.orange[700],
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                ] else if (booking.needsPayment) ...[
+                  // Only show Pay Now if work is completed but not paid and not pending
+                  ElevatedButton.icon(
+                    onPressed: () => _openPaymentScreen(booking),
+                    icon: const Icon(Icons.payment, size: 16),
+                    label: const Text('Pay Now'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppTheme.accentGreen,
+                      foregroundColor: Colors.white,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                ] else if (booking.isPaid) ...[
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: Colors.green[50],
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.green),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.check_circle, size: 16, color: Colors.green[700]),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Paid',
+                          style: TextStyle(
+                            color: Colors.green[700],
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                ],
+              ],
+              
+              Expanded(
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    if (booking.status == 'completed') ...[
+                      if (booking.hasRating) ...[
+                        // Show rating if already rated
+                        Flexible(
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              ...List.generate(5, (index) {
+                                return Icon(
+                                  index < (booking.ratingScore ?? 0)
+                                      ? Icons.star
+                                      : Icons.star_border,
+                                  color: Colors.amber,
+                                  size: 20,
+                                );
+                              }),
+                              const SizedBox(width: 8),
+                              Flexible(
+                                child: Text(
+                                  'You rated ${booking.ratingScore} star${(booking.ratingScore ?? 0) > 1 ? 's' : ''}',
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    color: Colors.grey[700],
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ] else ...[
+                        // Show rate button if not yet rated
+                        OutlinedButton.icon(
+                          onPressed: () => _showRatingDialog(booking),
+                          icon: const Icon(Icons.star_outline, size: 16),
+                          label: const Text('Rate'),
+                          style: OutlinedButton.styleFrom(
+                            side: BorderSide(color: Colors.orange[500]!),
+                            foregroundColor: Colors.orange[500],
+                          ),
+                        ),
+                      ],
+                    ] else if (booking.status == 'in_progress') ...[
+                      OutlinedButton.icon(
+                        onPressed: () => _openChat(booking),
+                        icon: const Icon(Icons.message, size: 16),
+                        label: const Text('Chat'),
+                        style: OutlinedButton.styleFrom(
+                          side: BorderSide(color: Colors.blueAccent),
+                          foregroundColor: Colors.blueAccent,
+                        ),
+                      ),
+                    ] else if (booking.status == 'accepted' ||
+                        booking.status == 'matched') ...[
+                      ElevatedButton.icon(
+                        onPressed: () => _openTracking(booking),
+                        icon: const Icon(Icons.navigation, size: 16),
+                        label: const Text('Track'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.green,
+                          foregroundColor: Colors.white,
                         ),
                       ),
                     ],
-                  ),
-                ] else ...[
-                  // Show rate button if not yet rated
-                  OutlinedButton.icon(
-                    onPressed: () => _showRatingDialog(booking),
-                    icon: const Icon(Icons.star_outline, size: 16),
-                    label: const Text('Rate Service'),
-                    style: OutlinedButton.styleFrom(
-                      side: BorderSide(color: Colors.orange[500]!),
-                      foregroundColor: Colors.orange[500],
-                    ),
-                  ),
-                ],
-              ] else if (booking.status == 'in_progress') ...[
-                OutlinedButton.icon(
-                  onPressed: () => _openChat(booking),
-                  icon: const Icon(Icons.message, size: 16),
-                  label: const Text('Chat'),
-                  style: OutlinedButton.styleFrom(
-                    side: BorderSide(color: Colors.blueAccent),
-                    foregroundColor: Colors.blueAccent,
-                  ),
+                  ],
                 ),
-              ] else if (booking.status == 'accepted' ||
-                  booking.status == 'matched') ...[
-                ElevatedButton.icon(
-                  onPressed: () => _openTracking(booking),
-                  icon: const Icon(Icons.navigation, size: 16),
-                  label: const Text('Track'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.green,
-                    foregroundColor: Colors.white,
-                  ),
-                ),
-              ],
+              ),
             ],
           ),
           if (booking.totalCost != null) ...[
@@ -468,6 +678,22 @@ class _UserBookingsScreenState extends State<UserBookingsScreen> {
         ),
       ),
     );
+  }
+
+  void _openPaymentScreen(Booking booking) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => BookingPaymentScreen(
+          bookingId: booking.id,
+        ),
+      ),
+    ).then((result) {
+      // Reload bookings if payment was completed
+      if (result == true) {
+        _loadBookings();
+      }
+    });
   }
 
   void _callTechnician(Booking booking) async {
@@ -601,8 +827,18 @@ class _UserBookingsScreenState extends State<UserBookingsScreen> {
     switch (status.toLowerCase()) {
       case 'completed':
         return StatusBadge.success('COMPLETED');
+      case 'payment_pending':
+        return StatusBadge.warning('PAYMENT PENDING');
       case 'in_progress':
         return StatusBadge.info('IN PROGRESS');
+      case 'quote_approved':
+        return StatusBadge.success('QUOTE APPROVED');
+      case 'quoted':
+        return StatusBadge.warning('QUOTED');
+      case 'inspecting':
+        return StatusBadge.warning('INSPECTING');
+      case 'arrived':
+        return StatusBadge.info('ARRIVED');
       case 'accepted':
         return StatusBadge.info('ACCEPTED');
       case 'matched':

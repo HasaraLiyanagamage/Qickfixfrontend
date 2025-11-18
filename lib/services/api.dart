@@ -485,7 +485,14 @@ class Api {
     double radiusKm = 50,
   }) async {
     try {
-      final url = '$base/api/technician/available?skill=$serviceType&lat=$lat&lng=$lng&radiusKm=$radiusKm';
+      // For emergency, don't filter by skill - get ALL available technicians
+      String url;
+      if (serviceType.toLowerCase() == 'emergency') {
+        url = '$base/api/technician/available?lat=$lat&lng=$lng&radiusKm=$radiusKm';
+        if (kDebugMode) print('Emergency service: Fetching ALL available technicians');
+      } else {
+        url = '$base/api/technician/available?skill=$serviceType&lat=$lat&lng=$lng&radiusKm=$radiusKm';
+      }
       if (kDebugMode) print('Fetching technicians from: $url');
       
       final r = await http.get(
@@ -1460,4 +1467,466 @@ class Api {
     }
     return null;
   }
+
+  // ========== FAVORITES ==========
+  static Future<List?> getFavorites() async {
+    try {
+      final r = await http.get(
+        Uri.parse('$base/api/user/favorites'),
+        headers: {'Authorization': 'Bearer $token'},
+      );
+      if (r.statusCode == 200) {
+        final data = jsonDecode(r.body);
+        return data['favorites'] as List?;
+      }
+    } catch (e) {
+      if (kDebugMode) print('Get favorites error: $e');
+    }
+    return null;
+  }
+
+  static Future<bool> addFavorite(String technicianId) async {
+    try {
+      final r = await http.post(
+        Uri.parse('$base/api/user/favorites'),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+        body: jsonEncode({'technicianId': technicianId}),
+      );
+      return r.statusCode == 200;
+    } catch (e) {
+      if (kDebugMode) print('Add favorite error: $e');
+      return false;
+    }
+  }
+
+  static Future<bool> removeFavorite(String technicianId) async {
+    try {
+      final r = await http.delete(
+        Uri.parse('$base/api/user/favorites/$technicianId'),
+        headers: {'Authorization': 'Bearer $token'},
+      );
+      return r.statusCode == 200;
+    } catch (e) {
+      if (kDebugMode) print('Remove favorite error: $e');
+      return false;
+    }
+  }
+
+  // ========== SERVICE PACKAGES ==========
+  static Future<List?> getServicePackages() async {
+    try {
+      final r = await http.get(
+        Uri.parse('$base/api/packages'),
+        headers: {'Authorization': 'Bearer $token'},
+      );
+      if (r.statusCode == 200) {
+        final data = jsonDecode(r.body);
+        return data['packages'] as List?;
+      }
+    } catch (e) {
+      if (kDebugMode) print('Get packages error: $e');
+    }
+    return null;
+  }
+
+  static Future<bool> bookServicePackage(String packageId) async {
+    try {
+      final r = await http.post(
+        Uri.parse('$base/api/packages/$packageId/book'),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+      );
+      return r.statusCode == 200;
+    } catch (e) {
+      if (kDebugMode) print('Book package error: $e');
+      return false;
+    }
+  }
+
+  // ========== TECHNICIAN SCHEDULE ==========
+  static Future<List?> getTechnicianSchedule() async {
+    try {
+      final r = await http.get(
+        Uri.parse('$base/api/technician/schedule'),
+        headers: {'Authorization': 'Bearer $token'},
+      );
+      if (r.statusCode == 200) {
+        final data = jsonDecode(r.body);
+        return data['schedule'] as List?;
+      }
+    } catch (e) {
+      if (kDebugMode) print('Get schedule error: $e');
+    }
+    return null;
+  }
+
+  static Future<bool> blockTimeSlot(Map<String, dynamic> slotData) async {
+    try {
+      final r = await http.post(
+        Uri.parse('$base/api/technician/block-time'),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+        body: jsonEncode(slotData),
+      );
+      return r.statusCode == 200;
+    } catch (e) {
+      if (kDebugMode) print('Block time error: $e');
+      return false;
+    }
+  }
+
+  // ========== SERVICE HISTORY ==========
+  static Future<List?> getServiceHistory({DateTime? startDate, DateTime? endDate}) async {
+    try {
+      String url = '$base/api/user/service-history';
+      if (startDate != null && endDate != null) {
+        url += '?startDate=${startDate.toIso8601String()}&endDate=${endDate.toIso8601String()}';
+      }
+      final r = await http.get(
+        Uri.parse(url),
+        headers: {'Authorization': 'Bearer $token'},
+      );
+      if (r.statusCode == 200) {
+        final data = jsonDecode(r.body);
+        return data['history'] as List?;
+      }
+    } catch (e) {
+      if (kDebugMode) print('Get service history error: $e');
+    }
+    return null;
+  }
+
+  // ========== CHAT ==========
+  static Future<List?> getChatMessages(String chatId) async {
+    try {
+      final r = await http.get(
+        Uri.parse('$base/api/messages/$chatId'),
+        headers: {'Authorization': 'Bearer $token'},
+      );
+      if (r.statusCode == 200) {
+        final data = jsonDecode(r.body);
+        return data['messages'] as List?;
+      }
+    } catch (e) {
+      if (kDebugMode) print('Get messages error: $e');
+    }
+    return null;
+  }
+
+  static Future<Map?> sendDirectMessage({
+    required String chatId,
+    required String receiverId,
+    required String message,
+    String? imageUrl,
+  }) async {
+    try {
+      final r = await http.post(
+        Uri.parse('$base/api/messages'),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+        body: jsonEncode({
+          'chatId': chatId,
+          'receiverId': receiverId,
+          'message': message,
+          if (imageUrl != null) 'imageUrl': imageUrl,
+        }),
+      );
+      if (r.statusCode == 200) return jsonDecode(r.body);
+    } catch (e) {
+      if (kDebugMode) print('Send direct message error: $e');
+    }
+    return null;
+  }
+
+  static Future<String?> uploadChatImage(String imagePath) async {
+    try {
+      final request = http.MultipartRequest(
+        'POST',
+        Uri.parse('$base/api/messages/upload-image'),
+      );
+      request.headers['Authorization'] = 'Bearer $token';
+      request.files.add(await http.MultipartFile.fromPath('image', imagePath));
+      
+      final response = await request.send();
+      if (response.statusCode == 200) {
+        final data = jsonDecode(await response.stream.bytesToString());
+        return data['imageUrl'];
+      }
+    } catch (e) {
+      if (kDebugMode) print('Upload image error: $e');
+    }
+    return null;
+  }
+
+  // ========== TWO-FACTOR AUTHENTICATION ==========
+  static Future<bool> send2FACode({required String method}) async {
+    try {
+      final r = await http.post(
+        Uri.parse('$base/api/auth/2fa/send'),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+        body: jsonEncode({'method': method}),
+      );
+      return r.statusCode == 200;
+    } catch (e) {
+      if (kDebugMode) print('Send 2FA code error: $e');
+      return false;
+    }
+  }
+
+  static Future<bool> verify2FACode(String code) async {
+    try {
+      final r = await http.post(
+        Uri.parse('$base/api/auth/2fa/verify'),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+        body: jsonEncode({'code': code}),
+      );
+      return r.statusCode == 200;
+    } catch (e) {
+      if (kDebugMode) print('Verify 2FA code error: $e');
+      return false;
+    }
+  }
+
+  static Future<bool> enable2FA() async {
+    try {
+      final r = await http.post(
+        Uri.parse('$base/api/auth/2fa/enable'),
+        headers: {'Authorization': 'Bearer $token'},
+      );
+      return r.statusCode == 200;
+    } catch (e) {
+      if (kDebugMode) print('Enable 2FA error: $e');
+      return false;
+    }
+  }
+
+  static Future<bool> disable2FA() async {
+    try {
+      final r = await http.post(
+        Uri.parse('$base/api/auth/2fa/disable'),
+        headers: {'Authorization': 'Bearer $token'},
+      );
+      return r.statusCode == 200;
+    } catch (e) {
+      if (kDebugMode) print('Disable 2FA error: $e');
+      return false;
+    }
+  }
+
+  // ========== PAYMENT ==========
+  static Future<Map?> createPaymentIntent({
+    required String bookingId,
+    required double amount,
+  }) async {
+    try {
+      final r = await http.post(
+        Uri.parse('$base/api/payment/create-intent'),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+        body: jsonEncode({
+          'bookingId': bookingId,
+          'amount': (amount * 100).toInt(), // Convert to cents
+        }),
+      );
+      if (r.statusCode == 200) return jsonDecode(r.body);
+    } catch (e) {
+      if (kDebugMode) print('Create payment intent error: $e');
+    }
+    return null;
+  }
+
+  static Future<bool> confirmPayment({
+    required String bookingId,
+    required String paymentIntentId,
+  }) async {
+    try {
+      final r = await http.post(
+        Uri.parse('$base/api/payment/confirm'),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+        body: jsonEncode({
+          'bookingId': bookingId,
+          'paymentIntentId': paymentIntentId,
+        }),
+      );
+      return r.statusCode == 200;
+    } catch (e) {
+      if (kDebugMode) print('Confirm payment error: $e');
+      return false;
+    }
+  }
+
+  static Future<bool> confirmCashPayment({required String bookingId}) async {
+    try {
+      final r = await http.post(
+        Uri.parse('$base/api/payment/cash'),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+        body: jsonEncode({'bookingId': bookingId}),
+      );
+      return r.statusCode == 200;
+    } catch (e) {
+      if (kDebugMode) print('Confirm cash payment error: $e');
+      return false;
+    }
+  }
+
+  static Future<bool> confirmCardPayment({required String bookingId}) async {
+    try {
+      final r = await http.post(
+        Uri.parse('$base/api/payment/card'),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+        body: jsonEncode({'bookingId': bookingId}),
+      );
+      return r.statusCode == 200;
+    } catch (e) {
+      if (kDebugMode) print('Confirm card payment error: $e');
+      return false;
+    }
+  }
+
+  // Technician confirms payment received
+  static Future<bool> confirmPaymentReceived({required String bookingId}) async {
+    try {
+      final r = await http.post(
+        Uri.parse('$base/api/payment/confirm-received'),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+        body: jsonEncode({'bookingId': bookingId}),
+      );
+      return r.statusCode == 200;
+    } catch (e) {
+      if (kDebugMode) print('Confirm payment received error: $e');
+      return false;
+    }
+  }
+
+  static Future<List<Map<String, dynamic>>> getPaymentHistory() async {
+    try {
+      final r = await http.get(
+        Uri.parse('$base/api/payment/history'),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+      );
+      if (r.statusCode == 200) {
+        final data = jsonDecode(r.body);
+        return List<Map<String, dynamic>>.from(data['payments'] ?? []);
+      }
+    } catch (e) {
+      if (kDebugMode) print('Get payment history error: $e');
+    }
+    return [];
+  }
+
+  // ========== QUOTATION METHODS ==========
+  
+  static Future<bool> approveQuotation(String bookingId) async {
+    try {
+      final r = await http.post(
+        Uri.parse('$base/api/booking/$bookingId/approve'),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+      );
+      return r.statusCode == 200;
+    } catch (e) {
+      if (kDebugMode) print('Approve quotation error: $e');
+      rethrow;
+    }
+  }
+
+  static Future<bool> rejectQuotation(String bookingId, String reason) async {
+    try {
+      final r = await http.post(
+        Uri.parse('$base/api/booking/$bookingId/reject'),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+        body: jsonEncode({'reason': reason}),
+      );
+      return r.statusCode == 200;
+    } catch (e) {
+      if (kDebugMode) print('Reject quotation error: $e');
+      rethrow;
+    }
+  }
+
+  static Future<Map<String, dynamic>?> getBookingById(String bookingId) async {
+    try {
+      final r = await http.get(
+        Uri.parse('$base/api/booking/$bookingId'),
+        headers: {
+          'Authorization': 'Bearer $token',
+        },
+      );
+      if (r.statusCode == 200) {
+        final data = jsonDecode(r.body);
+        return data['booking'] as Map<String, dynamic>?;
+      }
+    } catch (e) {
+      if (kDebugMode) print('Get booking by ID error: $e');
+    }
+    return null;
+  }
+
+  static Future<bool> provideQuotation({
+    required String bookingId,
+    required double laborCost,
+    required double materialsCost,
+    required List<Map<String, dynamic>> additionalCosts,
+    required String notes,
+  }) async {
+    try {
+      final r = await http.post(
+        Uri.parse('$base/api/booking/$bookingId/provide'),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+        body: jsonEncode({
+          'laborCost': laborCost,
+          'materialsCost': materialsCost,
+          'additionalCosts': additionalCosts,
+          'notes': notes,
+        }),
+      );
+      return r.statusCode == 200;
+    } catch (e) {
+      if (kDebugMode) print('Provide quotation error: $e');
+      rethrow;
+    }
+  }
+
+  // ========== HELPER METHODS ==========
+  static String get baseUrl => base;
 }
