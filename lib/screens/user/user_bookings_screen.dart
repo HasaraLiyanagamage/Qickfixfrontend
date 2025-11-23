@@ -407,9 +407,9 @@ class _UserBookingsScreenState extends State<UserBookingsScreen> {
                     radius: 16,
                     backgroundColor: Colors.blueAccent,
                     child: Text(
-                      booking.technician!.user!.name
-                          .substring(0, 1)
-                          .toUpperCase(),
+                      booking.technician!.user!.name.isNotEmpty
+                          ? booking.technician!.user!.name.substring(0, 1).toUpperCase()
+                          : '?',
                       style: const TextStyle(color: Colors.white, fontSize: 12),
                     ),
                   ),

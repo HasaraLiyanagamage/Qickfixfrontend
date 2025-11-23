@@ -4,6 +4,7 @@ import '../../utils/app_theme.dart';
 import '../../widgets/gradient_header.dart';
 import '../../widgets/modern_card.dart';
 import '../../widgets/empty_state.dart';
+import '../request_service_screen.dart';
 
 class ServicePackagesScreen extends StatefulWidget {
   const ServicePackagesScreen({super.key});
@@ -40,66 +41,28 @@ class _ServicePackagesScreenState extends State<ServicePackagesScreen> {
   }
 
   void _bookPackage(Map<String, dynamic> package) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text('Book ${package['name']}'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Price: LKR ${package['price']}'),
-            const SizedBox(height: 8),
-            Text('Duration: ${package['duration']} minutes'),
-            const SizedBox(height: 8),
-            const Text('Services included:'),
-            const SizedBox(height: 4),
-            ...((package['services'] as List?) ?? []).map((service) => 
-              Padding(
-                padding: const EdgeInsets.only(left: 8, top: 4),
-                child: Row(
-                  children: [
-                    const Icon(Icons.check_circle, size: 16, color: AppTheme.success),
-                    const SizedBox(width: 8),
-                    Expanded(child: Text(service.toString())),
-                  ],
-                ),
-              ),
-            ),
-          ],
+    // Navigate to request service screen with package details
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => RequestServiceScreen(
+          package: package,
+          initialServiceType: package['name'],
+          isPackage: true,
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context);
-              _confirmBooking(package);
-            },
-            child: const Text('Confirm Booking'),
-          ),
-        ],
       ),
-    );
-  }
-
-  Future<void> _confirmBooking(Map<String, dynamic> package) async {
-    try {
-      await Api.bookServicePackage(package['_id']);
-      if (mounted) {
+    ).then((result) {
+      if (result == true) {
+        // Booking successful
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Package booked successfully!')),
+          SnackBar(
+            content: const Text('Package booked successfully!'),
+            backgroundColor: AppTheme.success,
+            behavior: SnackBarBehavior.floating,
+          ),
         );
       }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e')),
-        );
-      }
-    }
+    });
   }
 
   Color _getPackageColor(String type) {

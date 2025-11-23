@@ -8,6 +8,8 @@ class SelectTechnicianScreen extends StatefulWidget {
   final String address;
   final double lat;
   final double lng;
+  final Map<String, dynamic>? package;
+  final bool isPackage;
 
   const SelectTechnicianScreen({
     super.key,
@@ -15,6 +17,8 @@ class SelectTechnicianScreen extends StatefulWidget {
     required this.address,
     required this.lat,
     required this.lng,
+    this.package,
+    this.isPackage = false,
   });
 
   @override
@@ -98,13 +102,30 @@ class _SelectTechnicianScreenState extends State<SelectTechnicianScreen> {
   Future<void> _bookTechnician(String technicianId, String technicianName) async {
     setState(() => _isBooking = true);
     try {
-      final result = await Api.createBooking(
-        serviceType: widget.serviceType,
-        lat: widget.lat,
-        lng: widget.lng,
-        address: widget.address,
-        technicianId: technicianId,
-      );
+      dynamic result;
+      
+      // Check if this is a package booking
+      if (widget.isPackage && widget.package != null) {
+        // Book package with location and technician
+        result = await Api.bookServicePackage(
+          widget.package!['_id'],
+          location: {
+            'latitude': widget.lat,
+            'longitude': widget.lng,
+            'address': widget.address,
+          },
+          technicianId: technicianId,
+        );
+      } else {
+        // Regular service booking
+        result = await Api.createBooking(
+          serviceType: widget.serviceType,
+          lat: widget.lat,
+          lng: widget.lng,
+          address: widget.address,
+          technicianId: technicianId,
+        );
+      }
 
       if (mounted) {
         setState(() => _isBooking = false);
@@ -117,7 +138,10 @@ class _SelectTechnicianScreenState extends State<SelectTechnicianScreen> {
             return;
           }
           
-          _showSnackBar('Booking created successfully with $technicianName!');
+          final message = widget.isPackage 
+              ? 'Package booked successfully with $technicianName!'
+              : 'Booking created successfully with $technicianName!';
+          _showSnackBar(message);
           
           // Navigate to tracking screen
           Navigator.pushReplacement(

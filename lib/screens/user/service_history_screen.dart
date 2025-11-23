@@ -104,7 +104,7 @@ class _ServiceHistoryScreenState extends State<ServiceHistoryScreen> {
                 booking['serviceType'] ?? 'N/A',
                 booking['technician']?['user']?['name'] ?? 'N/A',
                 booking['status'] ?? 'N/A',
-                'LKR ${booking['totalCost'] ?? 0}',
+                'LKR ${_getBookingCost(booking).toStringAsFixed(2)}',
               ];
             }).toList(),
             headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold),
@@ -132,10 +132,23 @@ class _ServiceHistoryScreenState extends State<ServiceHistoryScreen> {
 
   double _calculateTotal() {
     return _history.fold(0.0, (sum, booking) {
-      final cost = booking['totalCost'];
+      // Try quotation.totalEstimate first (for on-site quotes), then pricing.totalFare
+      final quotationTotal = booking['quotation']?['totalEstimate'];
+      final pricingTotal = booking['pricing']?['totalFare'];
+      
+      final cost = quotationTotal ?? pricingTotal ?? 0;
       if (cost is num) return sum + cost.toDouble();
       return sum;
     });
+  }
+  
+  double _getBookingCost(Map<String, dynamic> booking) {
+    // Try quotation.totalEstimate first (for on-site quotes), then pricing.totalFare
+    final quotationTotal = booking['quotation']?['totalEstimate'];
+    final pricingTotal = booking['pricing']?['totalFare'];
+    
+    final cost = quotationTotal ?? pricingTotal ?? 0;
+    return cost is num ? cost.toDouble() : 0.0;
   }
 
   Color _getStatusColor(String status) {
@@ -334,7 +347,7 @@ class _ServiceHistoryScreenState extends State<ServiceHistoryScreen> {
                                               ],
                                             ),
                                             Text(
-                                              'LKR ${booking['totalCost'] ?? 0}',
+                                              'LKR ${_getBookingCost(booking).toStringAsFixed(2)}',
                                               style: const TextStyle(
                                                 fontSize: 16,
                                                 fontWeight: FontWeight.bold,

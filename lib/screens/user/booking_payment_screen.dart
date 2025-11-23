@@ -302,7 +302,7 @@ class _BookingPaymentScreenState extends State<BookingPaymentScreen> {
                                               ),
                                             ),
                                             Text(
-                                              'Booking #${widget.bookingId.substring(0, 8)}',
+                                              'Booking #${widget.bookingId.length > 8 ? widget.bookingId.substring(0, 8) : widget.bookingId}',
                                               style: TextStyle(
                                                 fontSize: 12,
                                                 color: Colors.grey[600],

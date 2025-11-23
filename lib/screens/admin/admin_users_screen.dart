@@ -296,7 +296,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> with SingleTickerPr
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  'User ID: ${user['_id']?.substring(0, 8) ?? 'N/A'}...',
+                  'User ID: ${user['_id'] != null && user['_id'].length > 8 ? user['_id'].substring(0, 8) + '...' : user['_id'] ?? 'N/A'}',
                   style: TextStyle(
                     color: Colors.grey[600],
                     fontSize: 12,
@@ -417,7 +417,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> with SingleTickerPr
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  'Tech ID: ${technician['_id']?.substring(0, 8) ?? 'N/A'}...',
+                  'Tech ID: ${technician['_id'] != null && technician['_id'].length > 8 ? technician['_id'].substring(0, 8) + '...' : technician['_id'] ?? 'N/A'}',
                   style: TextStyle(
                     color: Colors.grey[600],
                     fontSize: 12,

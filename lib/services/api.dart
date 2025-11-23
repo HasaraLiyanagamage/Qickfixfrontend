@@ -61,18 +61,32 @@ class Api {
         body: jsonEncode(body),
       );
 
-      if (r.statusCode == 200) {
+      if (r.statusCode == 200 || r.statusCode == 201) {
         final data = jsonDecode(r.body);
         token = data['token'];
         await saveToken(token!, data['user']['role']);
-        return data;
+        return {'success': true, 'data': data};
       } else {
+        // Parse error message from backend
+        final errorData = jsonDecode(r.body);
+        final errorMessage = errorData['message'] ?? 'Registration failed';
+        final errors = errorData['errors'] as List?;
+        
         if (kDebugMode) print('Register failed: ${r.statusCode} ${r.body}');
+        
+        return {
+          'success': false,
+          'error': errorMessage,
+          'errors': errors,
+        };
       }
     } catch (e) {
       if (kDebugMode) print('Register error: $e');
+      return {
+        'success': false,
+        'error': 'Network error. Please check your connection.',
+      };
     }
-    return null;
   }
 
   static Future<Map?> registerTechnician({
@@ -105,18 +119,32 @@ class Api {
         body: jsonEncode(body),
       );
 
-      if (r.statusCode == 200) {
+      if (r.statusCode == 200 || r.statusCode == 201) {
         final data = jsonDecode(r.body);
         token = data['token'];
         await saveToken(token!, data['user']['role']);
-        return data;
+        return {'success': true, 'data': data};
       } else {
+        // Parse error message from backend
+        final errorData = jsonDecode(r.body);
+        final errorMessage = errorData['message'] ?? 'Registration failed';
+        final errors = errorData['errors'] as List?;
+        
         if (kDebugMode) print('Register technician failed: ${r.statusCode} ${r.body}');
+        
+        return {
+          'success': false,
+          'error': errorMessage,
+          'errors': errors,
+        };
       }
     } catch (e) {
       if (kDebugMode) print('Register technician error: $e');
+      return {
+        'success': false,
+        'error': 'Network error. Please check your connection.',
+      };
     }
-    return null;
   }
 
   static Future<Map?> socialLogin({
@@ -804,7 +832,7 @@ class Api {
     return null;
   }
 
-  // ============ PICKME FEATURES ============
+ 
 
   // Estimate fare before booking
   static Future<Map?> estimateFare({
@@ -1348,11 +1376,21 @@ class Api {
   // Get dashboard metrics (Admin)
   static Future<Map?> getDashboardMetrics({String timeRange = 'today'}) async {
     try {
+      final url = '$base/api/analytics/dashboard?timeRange=$timeRange';
+      if (kDebugMode) print('Fetching dashboard metrics from: $url');
+      
       final r = await http.get(
-        Uri.parse('$base/api/analytics/dashboard?timeRange=$timeRange'),
+        Uri.parse(url),
         headers: {'Authorization': 'Bearer $token'},
       );
+      
+      if (kDebugMode) {
+        print('Dashboard metrics response status: ${r.statusCode}');
+        print('Dashboard metrics response body: ${r.body}');
+      }
+      
       if (r.statusCode == 200) return jsonDecode(r.body);
+      if (kDebugMode) print('Dashboard metrics failed with status: ${r.statusCode}');
     } catch (e) {
       if (kDebugMode) print('Get dashboard metrics error: $e');
     }
@@ -1532,19 +1570,32 @@ class Api {
     return null;
   }
 
-  static Future<bool> bookServicePackage(String packageId) async {
+  static Future<Map<String, dynamic>?> bookServicePackage(
+    String packageId, {
+    Map<String, dynamic>? location,
+    String? technicianId,
+  }) async {
     try {
+      final body = <String, dynamic>{};
+      if (location != null) body['location'] = location;
+      if (technicianId != null) body['technicianId'] = technicianId;
+      
       final r = await http.post(
         Uri.parse('$base/api/packages/$packageId/book'),
         headers: {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json',
         },
+        body: jsonEncode(body),
       );
-      return r.statusCode == 200;
+      
+      if (r.statusCode == 200) {
+        return jsonDecode(r.body) as Map<String, dynamic>;
+      }
+      return null;
     } catch (e) {
       if (kDebugMode) print('Book package error: $e');
-      return false;
+      return null;
     }
   }
 
@@ -1665,67 +1716,6 @@ class Api {
       if (kDebugMode) print('Upload image error: $e');
     }
     return null;
-  }
-
-  // ========== TWO-FACTOR AUTHENTICATION ==========
-  static Future<bool> send2FACode({required String method}) async {
-    try {
-      final r = await http.post(
-        Uri.parse('$base/api/auth/2fa/send'),
-        headers: {
-          'Authorization': 'Bearer $token',
-          'Content-Type': 'application/json',
-        },
-        body: jsonEncode({'method': method}),
-      );
-      return r.statusCode == 200;
-    } catch (e) {
-      if (kDebugMode) print('Send 2FA code error: $e');
-      return false;
-    }
-  }
-
-  static Future<bool> verify2FACode(String code) async {
-    try {
-      final r = await http.post(
-        Uri.parse('$base/api/auth/2fa/verify'),
-        headers: {
-          'Authorization': 'Bearer $token',
-          'Content-Type': 'application/json',
-        },
-        body: jsonEncode({'code': code}),
-      );
-      return r.statusCode == 200;
-    } catch (e) {
-      if (kDebugMode) print('Verify 2FA code error: $e');
-      return false;
-    }
-  }
-
-  static Future<bool> enable2FA() async {
-    try {
-      final r = await http.post(
-        Uri.parse('$base/api/auth/2fa/enable'),
-        headers: {'Authorization': 'Bearer $token'},
-      );
-      return r.statusCode == 200;
-    } catch (e) {
-      if (kDebugMode) print('Enable 2FA error: $e');
-      return false;
-    }
-  }
-
-  static Future<bool> disable2FA() async {
-    try {
-      final r = await http.post(
-        Uri.parse('$base/api/auth/2fa/disable'),
-        headers: {'Authorization': 'Bearer $token'},
-      );
-      return r.statusCode == 200;
-    } catch (e) {
-      if (kDebugMode) print('Disable 2FA error: $e');
-      return false;
-    }
   }
 
   // ========== PAYMENT ==========
@@ -1924,6 +1914,129 @@ class Api {
     } catch (e) {
       if (kDebugMode) print('Provide quotation error: $e');
       rethrow;
+    }
+  }
+
+  // ========== TWO-FACTOR AUTHENTICATION ==========
+  
+  // Enable 2FA
+  static Future<Map?> enable2FA() async {
+    try {
+      final r = await http.post(
+        Uri.parse('$base/api/two-factor/enable'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+      );
+
+      if (r.statusCode == 200) {
+        return jsonDecode(r.body);
+      } else {
+        if (kDebugMode) print('Enable 2FA failed: ${r.statusCode} ${r.body}');
+        final errorData = jsonDecode(r.body);
+        return {'success': false, 'error': errorData['error'] ?? 'Failed to enable 2FA'};
+      }
+    } catch (e) {
+      if (kDebugMode) print('Enable 2FA error: $e');
+      return {'success': false, 'error': 'Network error'};
+    }
+  }
+
+  // Disable 2FA
+  static Future<Map?> disable2FA() async {
+    try {
+      final r = await http.post(
+        Uri.parse('$base/api/two-factor/disable'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+      );
+
+      if (r.statusCode == 200) {
+        return jsonDecode(r.body);
+      } else {
+        if (kDebugMode) print('Disable 2FA failed: ${r.statusCode} ${r.body}');
+        final errorData = jsonDecode(r.body);
+        return {'success': false, 'error': errorData['error'] ?? 'Failed to disable 2FA'};
+      }
+    } catch (e) {
+      if (kDebugMode) print('Disable 2FA error: $e');
+      return {'success': false, 'error': 'Network error'};
+    }
+  }
+
+  // Send 2FA code
+  static Future<Map?> send2FACode(String method) async {
+    try {
+      final r = await http.post(
+        Uri.parse('$base/api/two-factor/send'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode({'method': method}), // 'sms' or 'email'
+      );
+
+      if (r.statusCode == 200) {
+        return jsonDecode(r.body);
+      } else {
+        if (kDebugMode) print('Send 2FA code failed: ${r.statusCode} ${r.body}');
+        final errorData = jsonDecode(r.body);
+        return {'success': false, 'error': errorData['error'] ?? 'Failed to send code'};
+      }
+    } catch (e) {
+      if (kDebugMode) print('Send 2FA code error: $e');
+      return {'success': false, 'error': 'Network error'};
+    }
+  }
+
+  // Verify 2FA code
+  static Future<Map?> verify2FACode(String code) async {
+    try {
+      final r = await http.post(
+        Uri.parse('$base/api/two-factor/verify'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode({'code': code}),
+      );
+
+      if (r.statusCode == 200) {
+        return jsonDecode(r.body);
+      } else {
+        if (kDebugMode) print('Verify 2FA code failed: ${r.statusCode} ${r.body}');
+        final errorData = jsonDecode(r.body);
+        return {'success': false, 'error': errorData['error'] ?? 'Invalid code'};
+      }
+    } catch (e) {
+      if (kDebugMode) print('Verify 2FA code error: $e');
+      return {'success': false, 'error': 'Network error'};
+    }
+  }
+
+  // Get 2FA status
+  static Future<Map?> get2FAStatus() async {
+    try {
+      final r = await http.get(
+        Uri.parse('$base/api/two-factor/status'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+      );
+
+      if (r.statusCode == 200) {
+        return jsonDecode(r.body);
+      } else {
+        if (kDebugMode) print('Get 2FA status failed: ${r.statusCode} ${r.body}');
+        return {'enabled': false};
+      }
+    } catch (e) {
+      if (kDebugMode) print('Get 2FA status error: $e');
+      return {'enabled': false};
     }
   }
 

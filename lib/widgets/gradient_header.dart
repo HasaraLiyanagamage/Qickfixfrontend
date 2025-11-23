@@ -7,7 +7,6 @@ class GradientHeader extends StatelessWidget {
   final IconData? icon;
   final List<Color>? gradientColors;
   final Widget? action;
-
   const GradientHeader({
     super.key,
     required this.title,
@@ -16,7 +15,6 @@ class GradientHeader extends StatelessWidget {
     this.gradientColors,
     this.action,
   });
-
   @override
   Widget build(BuildContext context) {
     return Container(

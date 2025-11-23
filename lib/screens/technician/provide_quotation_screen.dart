@@ -27,7 +27,7 @@ class _ProvideQuotationScreenState extends State<ProvideQuotationScreen> {
   final _materialsCostController = TextEditingController();
   final _notesController = TextEditingController();
   
-  List<AdditionalCost> _additionalCosts = [];
+  final List<AdditionalCost> _additionalCosts = [];
   bool _isSubmitting = false;
 
   double get _totalEstimate {
@@ -179,7 +179,7 @@ class _ProvideQuotationScreenState extends State<ProvideQuotationScreen> {
                                   ),
                                 ),
                                 Text(
-                                  'Booking #${widget.bookingId.substring(0, 8)}',
+                                  'Booking #${widget.bookingId.length > 8 ? widget.bookingId.substring(0, 8) : widget.bookingId}',
                                   style: TextStyle(
                                     fontSize: 12,
                                     color: Colors.grey[600],

@@ -382,7 +382,7 @@ class _TechJobsScreenState extends State<TechJobsScreen> {
                       radius: 16,
                       backgroundColor: Colors.blueAccent,
                       child: Text(
-                        job.user!.name.substring(0, 1).toUpperCase(),
+                        job.user!.name.isNotEmpty ? job.user!.name.substring(0, 1).toUpperCase() : '?',
                         style: const TextStyle(color: Colors.white, fontSize: 12),
                       ),
                     ),

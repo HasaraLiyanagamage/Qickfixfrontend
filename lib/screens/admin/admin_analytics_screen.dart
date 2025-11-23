@@ -25,17 +25,29 @@ class _AdminAnalyticsScreenState extends State<AdminAnalyticsScreen> {
   Future<void> _loadMetrics() async {
     setState(() => _isLoading = true);
     try {
+      print('=== Loading Analytics Metrics ===');
+      print('Time Range: $_timeRange');
+      
       final data = await Api.getDashboardMetrics(timeRange: _timeRange);
+      print('Dashboard Metrics Response: $data');
+      
       if (mounted) {
         setState(() {
           if (data != null && data['metrics'] != null) {
             final metrics = data['metrics'];
+            print('Metrics Data: $metrics');
+            
             // Transform backend response to frontend format
             final totalBookings = metrics['bookings']?['total'] ?? 0;
             final completedBookings = metrics['bookings']?['completed'] ?? 0;
             final activeBookings = metrics['bookings']?['active'] ?? 0;
             final cancelledBookings = metrics['bookings']?['cancelled'] ?? 0;
             final pendingBookings = totalBookings - completedBookings - activeBookings - cancelledBookings;
+            
+            print('Total Bookings: $totalBookings');
+            print('Completed: $completedBookings, Active: $activeBookings, Cancelled: $cancelledBookings');
+            print('Total Users: ${metrics['users']?['total']}');
+            print('Total Revenue: ${metrics['revenue']?['total']}');
             
             _metrics = {
               'totalBookings': totalBookings,
@@ -49,8 +61,10 @@ class _AdminAnalyticsScreenState extends State<AdminAnalyticsScreen> {
               'topServices': [],
               'topTechnicians': [],
             };
+            print('Metrics Object Created: $_metrics');
             _loadAdditionalData();
           } else {
+            print('ERROR: No metrics data in response');
             _metrics = null;
           }
           _isLoading = false;
@@ -60,42 +74,64 @@ class _AdminAnalyticsScreenState extends State<AdminAnalyticsScreen> {
       if (mounted) {
         setState(() => _isLoading = false);
       }
-      print('Error loading metrics: $e');
+      print('ERROR loading metrics: $e');
     }
   }
 
   Future<void> _loadAdditionalData() async {
     try {
+      print('=== Loading Additional Data ===');
+      
       // Load service analytics for top services
+      print('Fetching service analytics...');
       final serviceData = await Api.getServiceTypeAnalytics(timeRange: _timeRange);
+      print('Service Data Response: $serviceData');
+      
       if (serviceData != null && serviceData['analytics'] != null) {
         final services = serviceData['analytics']['services'] as List? ?? [];
+        print('Services List: $services');
+        
         if (mounted) {
           setState(() {
             _metrics!['topServices'] = services.take(5).map((s) => {
               'service': s['serviceType'] ?? 'Unknown',
               'count': s['bookings'] ?? 0,
             }).toList();
+            print('Top Services Updated: ${_metrics!['topServices']}');
           });
         }
+      } else {
+        print('No service analytics data');
       }
 
       // Load performance analytics for top technicians
+      print('Fetching performance analytics...');
       final perfData = await Api.getPerformanceAnalytics(timeRange: _timeRange);
+      print('Performance Data Response: $perfData');
+      
       if (perfData != null && perfData['analytics'] != null) {
         final techPerf = perfData['analytics']['technicianPerformance'] as List? ?? [];
+        print('Technician Performance List: $techPerf');
+        
         if (mounted) {
           setState(() {
-            _metrics!['topTechnicians'] = techPerf.take(5).map((t) => {
-              'name': 'Technician ${t['_id']?.toString().substring(0, 8) ?? ''}',
-              'completedJobs': t['totalBookings'] ?? 0,
-              'rating': t['avgRating'] ?? 0.0,
+            _metrics!['topTechnicians'] = techPerf.take(5).map((t) {
+              final techId = t['_id']?.toString() ?? '';
+              final displayId = techId.length > 8 ? techId.substring(0, 8) : techId;
+              return {
+                'name': 'Technician $displayId',
+                'completedJobs': t['totalBookings'] ?? 0,
+                'rating': t['avgRating'] ?? 0.0,
+              };
             }).toList();
+            print('Top Technicians Updated: ${_metrics!['topTechnicians']}');
           });
         }
+      } else {
+        print('No performance analytics data');
       }
     } catch (e) {
-      print('Error loading additional data: $e');
+      print('ERROR loading additional data: $e');
     }
   }
 

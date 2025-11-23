@@ -9,6 +9,7 @@ import '../../providers/theme_provider.dart';
 import '../../providers/language_provider.dart';
 import '../../widgets/gradient_header.dart';
 import '../login_screen.dart';
+import '../two_factor_setup_screen.dart';
 
 class UserSettingsScreen extends StatefulWidget {
   const UserSettingsScreen({super.key});
@@ -26,15 +27,24 @@ class _UserSettingsScreenState extends State<UserSettingsScreen> {
   void initState() {
     super.initState();
     _loadSettings();
+    _load2FAStatus();
   }
 
   Future<void> _loadSettings() async {
     final prefs = await SharedPreferences.getInstance();
     setState(() {
       _autoBackup = prefs.getBool('autoBackup') ?? true;
-      _twoFactorEnabled = prefs.getBool('twoFactorEnabled') ?? false;
       _defaultLocation = prefs.getString('defaultLocation') ?? 'Not set';
     });
+  }
+
+  Future<void> _load2FAStatus() async {
+    final status = await Api.get2FAStatus();
+    if (mounted) {
+      setState(() {
+        _twoFactorEnabled = status?['enabled'] ?? false;
+      });
+    }
   }
 
   Future<void> _saveSetting(String key, dynamic value) async {
@@ -347,39 +357,18 @@ class _UserSettingsScreenState extends State<UserSettingsScreen> {
   }
 
   Future<void> _showTwoFactorDialog() async {
-    await showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Two-Factor Authentication'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              _twoFactorEnabled ? 'Two-factor authentication is currently enabled.' : 'Enable two-factor authentication for extra security.',
-              style: const TextStyle(fontSize: 14),
-            ),
-            const SizedBox(height: 16),
-            SwitchListTile(
-              title: const Text('Enable 2FA'),
-              value: _twoFactorEnabled,
-              onChanged: (value) {
-                setState(() => _twoFactorEnabled = value);
-                _saveSetting('twoFactorEnabled', value);
-                Navigator.pop(context);
-                _showSnackBar(value ? '2FA enabled' : '2FA disabled');
-              },
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Close'),
-          ),
-        ],
+    // Navigate to 2FA setup screen
+    final result = await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => TwoFactorSetupScreen(isEnabled: _twoFactorEnabled),
       ),
     );
+
+    // Refresh status if changed
+    if (result == true) {
+      _load2FAStatus();
+    }
   }
 
   Future<void> _showPrivacyPolicy() async {

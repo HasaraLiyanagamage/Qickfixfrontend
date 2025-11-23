@@ -32,7 +32,6 @@ class ChatbotApi {
       return "Error: $e";
     }
   }
-
   static Future<Map<String, dynamic>> sendMessageWithContext(String message) async {
     try {
       // Get user ID from shared preferences (or use default)

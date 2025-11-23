@@ -104,7 +104,7 @@ final result = _selectedRole == 'technician'
 
 setState(() => _isLoading = false);
 
-if (result != null && result['token'] != null) {
+if (result != null && result['success'] == true) {
   _showSnackBar("Registration successful! Please log in.");
   if (mounted) {
     Navigator.pushReplacement(
@@ -112,6 +112,19 @@ if (result != null && result['token'] != null) {
       MaterialPageRoute(builder: (_) => const LoginScreen()),
     );
   }
+} else if (result != null && result['success'] == false) {
+  // Show specific error message from backend
+  String errorMessage = result['error'] ?? 'Registration failed. Try again.';
+  
+  // If there are multiple validation errors, show them
+  if (result['errors'] != null && result['errors'] is List) {
+    final errors = result['errors'] as List;
+    if (errors.isNotEmpty) {
+      errorMessage = errors.join('\n');
+    }
+  }
+  
+  _showErrorDialog(errorMessage);
 } else {
   _showSnackBar("Registration failed. Try again.");
 }
@@ -219,6 +232,38 @@ Future<void> _registerWithApple() async {
 
 void _showSnackBar(String msg) {
   ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+}
+
+void _showErrorDialog(String message) {
+  showDialog(
+    context: context,
+    builder: (BuildContext context) {
+      return AlertDialog(
+        title: const Row(
+          children: [
+            Icon(Icons.error_outline, color: Colors.red, size: 28),
+            SizedBox(width: 10),
+            Text('Registration Error'),
+          ],
+        ),
+        content: SingleChildScrollView(
+          child: Text(
+            message,
+            style: const TextStyle(fontSize: 16),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('OK', style: TextStyle(fontSize: 16)),
+          ),
+        ],
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(15),
+        ),
+      );
+    },
+  );
 }
 
 @override

@@ -8,7 +8,15 @@ import 'user/select_technician_screen.dart';
 
 class RequestServiceScreen extends StatefulWidget {
   final String? initialServiceType;
-  const RequestServiceScreen({super.key, this.initialServiceType});
+  final Map<String, dynamic>? package;
+  final bool isPackage;
+  
+  const RequestServiceScreen({
+    super.key, 
+    this.initialServiceType,
+    this.package,
+    this.isPackage = false,
+  });
 
   @override
   State<RequestServiceScreen> createState() => _RequestServiceScreenState();
@@ -36,7 +44,7 @@ class _RequestServiceScreenState extends State<RequestServiceScreen> {
   @override
   void initState() {
     super.initState();
-    _selectedService = widget.initialServiceType;
+    _selectedService = widget.initialServiceType ?? widget.package?['name'];
   }
 
   @override
@@ -146,6 +154,8 @@ class _RequestServiceScreenState extends State<RequestServiceScreen> {
             serviceType: _selectedService!.toLowerCase(),
             address: _addressController.text.trim(),
             lat: lat,
+            package: widget.package,
+            isPackage: widget.isPackage,
             lng: lng,
           ),
         ),

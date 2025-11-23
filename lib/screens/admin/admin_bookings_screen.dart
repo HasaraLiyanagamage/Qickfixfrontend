@@ -298,7 +298,7 @@ class _AdminBookingsScreenState extends State<AdminBookingsScreen> with SingleTi
                             Icon(Icons.person, size: 16, color: Colors.grey[600]),
                             const SizedBox(width: 4),
                             Text(
-                              'User: ${booking.userId.substring(0, 8)}...',
+                              'User: ${booking.userId.length > 8 ? booking.userId.substring(0, 8) + '...' : booking.userId}',
                               style: TextStyle(color: Colors.grey[700], fontSize: 13),
                             ),
                           ],
@@ -355,7 +355,7 @@ class _AdminBookingsScreenState extends State<AdminBookingsScreen> with SingleTi
                             Icon(Icons.engineering, size: 16, color: Colors.grey[600]),
                             const SizedBox(width: 4),
                             Text(
-                              'Tech: ${booking.technicianId!.substring(0, 8)}...',
+                              'Tech: ${booking.technicianId!.length > 8 ? booking.technicianId!.substring(0, 8) + '...' : booking.technicianId!}',
                               style: TextStyle(color: Colors.grey[700], fontSize: 13),
                             ),
                           ],
