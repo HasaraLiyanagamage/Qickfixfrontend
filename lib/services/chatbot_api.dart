@@ -43,7 +43,8 @@ class ChatbotApi {
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
           'message': message,
-          'user_id': userId
+          'userId': userId,  // Changed from user_id to userId
+          'sessionId': userId  // Add session ID for context
         }),
       ).timeout(
         const Duration(seconds: 30),

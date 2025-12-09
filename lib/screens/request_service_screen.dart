@@ -122,12 +122,21 @@ class _RequestServiceScreenState extends State<RequestServiceScreen> {
       List<Location> locations = [];
       final address = _addressController.text.trim();
       
+      print('🔍 Geocoding address: "$address"');
+      
       try {
         locations = await locationFromAddress(address);
+        print('✓ Geocoding successful: ${locations.length} results');
       } catch (e) {
+        print('⚠️ Initial geocoding failed: $e');
         // Try with Sri Lanka appended
         if (!address.toLowerCase().contains('sri lanka')) {
-          locations = await locationFromAddress('$address, Sri Lanka');
+          try {
+            locations = await locationFromAddress('$address, Sri Lanka');
+            print('✓ Geocoding with "Sri Lanka" successful: ${locations.length} results');
+          } catch (e2) {
+            print('❌ Geocoding failed even with "Sri Lanka": $e2');
+          }
         }
       }
 
@@ -137,10 +146,12 @@ class _RequestServiceScreenState extends State<RequestServiceScreen> {
       if (locations.isNotEmpty) {
         lat = locations.first.latitude;
         lng = locations.first.longitude;
+        print('📍 Using coordinates: ($lat, $lng)');
       } else {
         // Use Sri Lanka center if geocoding fails
         lat = 7.8731;
         lng = 80.7718;
+        print('⚠️ Geocoding failed, using Sri Lanka center: ($lat, $lng)');
       }
 
       setState(() => _isGeocodingAddress = false);

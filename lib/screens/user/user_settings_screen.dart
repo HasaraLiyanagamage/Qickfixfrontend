@@ -281,18 +281,19 @@ class _UserSettingsScreenState extends State<UserSettingsScreen> {
   }
 
   Widget _buildSectionHeader(String title) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
       child: Row(
         children: [
-          Icon(Icons.menu, size: 20, color: Colors.grey[700]),
+          Icon(Icons.menu, size: 20, color: isDark ? Colors.grey[400] : Colors.grey[700]),
           const SizedBox(width: 8),
           Text(
             title,
             style: TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.bold,
-              color: Colors.grey[800],
+              color: isDark ? Colors.grey[300] : Colors.grey[800],
             ),
           ),
         ],
@@ -307,18 +308,19 @@ class _UserSettingsScreenState extends State<UserSettingsScreen> {
     ValueChanged<bool> onChanged,
     {IconData? leadingIcon}
   ) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey[200]!),
+        border: Border.all(color: isDark ? Colors.grey[700]! : Colors.grey[200]!),
       ),
       child: ListTile(
         leading: leadingIcon != null
-            ? Icon(leadingIcon, size: 24, color: Colors.grey[700])
+            ? Icon(leadingIcon, size: 24, color: isDark ? Colors.grey[400] : Colors.grey[700])
             : null,
         title: Text(title, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
-        subtitle: Text(subtitle, style: TextStyle(fontSize: 12, color: Colors.grey[600])),
+        subtitle: Text(subtitle, style: TextStyle(fontSize: 12, color: isDark ? Colors.grey[400] : Colors.grey[600])),
         trailing: Switch(
           value: value,
           onChanged: onChanged,
@@ -336,21 +338,22 @@ class _UserSettingsScreenState extends State<UserSettingsScreen> {
     VoidCallback onTap,
     {IconData? leadingIcon}
   ) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey[200]!),
+        border: Border.all(color: isDark ? Colors.grey[700]! : Colors.grey[200]!),
       ),
       child: ListTile(
         leading: leadingIcon != null
-            ? Icon(leadingIcon, size: 24, color: Colors.grey[700])
+            ? Icon(leadingIcon, size: 24, color: isDark ? Colors.grey[400] : Colors.grey[700])
             : null,
         title: Text(title, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
         subtitle: subtitle.isNotEmpty
-            ? Text(subtitle, style: TextStyle(fontSize: 12, color: Colors.grey[600]))
+            ? Text(subtitle, style: TextStyle(fontSize: 12, color: isDark ? Colors.grey[400] : Colors.grey[600]))
             : null,
-        trailing: Icon(trailingIcon, size: 20, color: Colors.grey[600]),
+        trailing: Icon(trailingIcon, size: 20, color: isDark ? Colors.grey[400] : Colors.grey[600]),
         onTap: onTap,
       ),
     );
@@ -683,13 +686,13 @@ class _UserSettingsScreenState extends State<UserSettingsScreen> {
       decoration: BoxDecoration(
         color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey[200]!),
+        border: Border.all(color: isDark ? Colors.grey[700]! : Colors.grey[200]!),
       ),
       child: ListTile(
         leading: Icon(
           isDark ? Icons.dark_mode : Icons.light_mode,
           size: 24,
-          color: Colors.grey[700],
+          color: isDark ? Colors.grey[400] : Colors.grey[700],
         ),
         title: const Text(
           'Dark Mode',
@@ -697,7 +700,7 @@ class _UserSettingsScreenState extends State<UserSettingsScreen> {
         ),
         subtitle: Text(
           isDark ? 'Dark theme enabled' : 'Light theme enabled',
-          style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+          style: TextStyle(fontSize: 12, color: isDark ? Colors.grey[400] : Colors.grey[600]),
         ),
         trailing: Switch(
           value: isDark,
@@ -716,24 +719,25 @@ class _UserSettingsScreenState extends State<UserSettingsScreen> {
       (lang) => lang['code'] == languageProvider.languageCode,
       orElse: () => LanguageProvider.supportedLanguages[0],
     );
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     
     return Container(
       decoration: BoxDecoration(
         color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey[200]!),
+        border: Border.all(color: isDark ? Colors.grey[700]! : Colors.grey[200]!),
       ),
       child: ListTile(
-        leading: Icon(Icons.language, size: 24, color: Colors.grey[700]),
+        leading: Icon(Icons.language, size: 24, color: isDark ? Colors.grey[400] : Colors.grey[700]),
         title: const Text(
           'Language',
           style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
         ),
         subtitle: Text(
           currentLanguage['nativeName'] ?? 'English',
-          style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+          style: TextStyle(fontSize: 12, color: isDark ? Colors.grey[400] : Colors.grey[600]),
         ),
-        trailing: Icon(Icons.chevron_right, size: 20, color: Colors.grey[600]),
+        trailing: Icon(Icons.chevron_right, size: 20, color: isDark ? Colors.grey[400] : Colors.grey[600]),
         onTap: () => _showLanguageDialog(),
       ),
     );

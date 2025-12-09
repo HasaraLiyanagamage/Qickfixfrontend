@@ -39,6 +39,8 @@ class _SelectTechnicianScreenState extends State<SelectTechnicianScreen> {
   Future<void> _loadTechnicians() async {
     setState(() => _isLoading = true);
     try {
+      print('Loading technicians for ${widget.serviceType} at (${widget.lat}, ${widget.lng})');
+      
       final techniciansData = await Api.getAvailableTechnicians(
         serviceType: widget.serviceType,
         lat: widget.lat,
@@ -46,52 +48,57 @@ class _SelectTechnicianScreenState extends State<SelectTechnicianScreen> {
         radiusKm: 50,
       );
 
-      if (mounted && techniciansData != null) {
-        // Calculate distance for each technician
-        List<Map<String, dynamic>> techList = [];
-        for (var tech in techniciansData) {
-          final techData = Map<String, dynamic>.from(tech);
-          
-          // Calculate distance
-          if (techData['location'] != null && 
-              techData['location']['coordinates'] != null) {
-            final coords = techData['location']['coordinates'];
-            if (coords.length >= 2) {
-              final distance = Geolocator.distanceBetween(
-                widget.lat,
-                widget.lng,
-                coords[1], // lat
-                coords[0], // lng
-              ) / 1000; // convert to km
-              techData['distance'] = distance;
+      if (mounted) {
+        if (techniciansData != null && techniciansData.isNotEmpty) {
+          // Calculate distance for each technician (backend already calculates, but recalculate for accuracy)
+          List<Map<String, dynamic>> techList = [];
+          for (var tech in techniciansData) {
+            final techData = Map<String, dynamic>.from(tech);
+            
+            // Use backend-calculated distance if available, otherwise calculate
+            if (techData['distance'] != null) {
+              // Backend already calculated distance
+              print('Technician ${techData['user']?['name']}: ${techData['distance']}km (from backend)');
+            } else if (techData['location'] != null && 
+                techData['location']['coordinates'] != null) {
+              final coords = techData['location']['coordinates'];
+              if (coords.length >= 2) {
+                final distance = Geolocator.distanceBetween(
+                  widget.lat,
+                  widget.lng,
+                  coords[1], // lat
+                  coords[0], // lng
+                ) / 1000; // convert to km
+                techData['distance'] = distance;
+                print('Technician ${techData['user']?['name']}: ${distance.toStringAsFixed(2)}km (calculated)');
+              }
             }
+            techList.add(techData);
           }
-          techList.add(techData);
+
+          // Sort by distance (ascending) - closest first
+          techList.sort((a, b) {
+            final distA = a['distance'] ?? 999999;
+            final distB = b['distance'] ?? 999999;
+            return distA.compareTo(distB);
+          });
+
+          print('Loaded ${techList.length} technicians within 50km');
+          
+          setState(() {
+            _technicians = techList;
+            _isLoading = false;
+          });
+        } else {
+          print('No technicians found for ${widget.serviceType} within 50km of (${widget.lat}, ${widget.lng})');
+          setState(() {
+            _technicians = [];
+            _isLoading = false;
+          });
         }
-
-        // Sort by rating (descending), then by distance (ascending)
-        techList.sort((a, b) {
-          final ratingA = a['rating'] ?? 0;
-          final ratingB = b['rating'] ?? 0;
-          if (ratingA != ratingB) {
-            return ratingB.compareTo(ratingA); // Higher rating first
-          }
-          final distA = a['distance'] ?? 999999;
-          final distB = b['distance'] ?? 999999;
-          return distA.compareTo(distB); // Closer distance first
-        });
-
-        setState(() {
-          _technicians = techList;
-          _isLoading = false;
-        });
-      } else {
-        setState(() {
-          _technicians = [];
-          _isLoading = false;
-        });
       }
     } catch (e) {
+      print('Error loading technicians: $e');
       if (mounted) {
         setState(() => _isLoading = false);
         _showSnackBar('Error loading technicians: $e');
